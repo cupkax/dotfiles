@@ -1,0 +1,45 @@
+# Configure color-scheme
+# COLOR_SCHEME=dark
+
+## --------------------- ALIASES --------------------- ##
+# Colors
+alias ls='ls --color=auto'
+alias grep='grep --color=auto'
+alias diff='diff --color=auto'
+alias pacman='pacman --color=auto'
+
+# Replace Commands
+alias ..='cd ..'
+  # bashtop
+  alias top='bashtop'
+
+  # cat/less
+  alias bat='bat --theme=ansi-$([ "$COLOR_SCHEME" = "light" ] && echo "light" || echo "dark")'
+  alias cat='bat --pager=never'
+  alias less='bat'
+
+# ls
+  alias ls='lsd --group-dirs first'
+  alias la='ls -A'
+  alias ll='ls -l'
+  alias lla='ls -Al'
+  alias tree='lsd --tree --depth 1'
+  alias treed='lsd --tree'
+
+alias mv='mv -i'
+alias rm='rm -i'
+alias vim='nvim'
+
+
+# Commands
+alias getme='sudo powerpill -Syu'
+alias ga='git add'
+alias gc='git commit'
+alias gpom='git push -u origin master'
+alias gs='git status'
+alias firefox='firefox-nightly'
+alias mirror='sudo reflector --verbose --country India --age 12 --sort rate --save /etc/pacman.d/mirrorlist'
+alias modem-on='dbus-send --print-reply --system --dest=org.ofono /phonesim org.ofono.Modem.SetProperty string:"Powered" variant:boolean:true'
+alias modem-activate='dbus-send --print-reply --system --dest=org.ofono /phonesim org.ofono.Modem.SetProperty string:"Online" variant:boolean:true'
+alias twitch='streamlink-twitch-gui'
+alias connect-wifi="sudo wpa_supplicant -B -i wlo1 -c <(wpa_passphrase TP-Link_B250 Darkace23)"
