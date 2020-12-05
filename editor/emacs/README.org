@@ -1,5 +1,5 @@
 #+TITLE: Emacs Config
-#+PROPERTY: header-args emacs-lisp :tangle "~/.emacs.d/init.el"
+#+PROPERTY: header-args emacs-lisp :tangle "~/dotfiles/editor/emacs/init.el"
 
 * Startup
 ** Lexical Binding
@@ -43,8 +43,8 @@ Garbage Collect when Emacs is out of focus and avoid garbage collection when usi
 #+begin_src emacs-lisp
   (defun update-to-load-path (folder)
     "Update FOLDER and its subdirectories to `load-path'."
-    (let ((base folder))
-      (unless (member base load-path)
+    (let ((base folder)) 
+     (unless (member base load-path)
         (add-to-list 'load-path base))
       (dolist (f (directory-files base))
         (let ((name (concat base "/" f)))
@@ -169,8 +169,7 @@ Garbage Collect when Emacs is out of focus and avoid garbage collection when usi
 *** Fonts
 #+begin_src emacs-lisp
   ;; Input Mono, Monaco Style, Line Height 1.3 download from http://input.fontbureau.com/
-  (defvar font-list-default '(("FiraCode Nerd Font" . 12) ("JetBrainsMono Nerd Font" . 12)))
-  (defvar font-list-fixed-pitch '(("FiraCode Nerd Font" . 12) ("JetBrainsMono Nerd Font" . 12)))
+  (defvar font-list '(("FiraCode Nerd Font" . 12) ("JetBrainsMono Nerd Font" . 12)))
 #+end_src
 
 Functions to switch fonts
@@ -200,6 +199,24 @@ Functions to switch fonts
 #+begin_src emacs-lisp
   (use-package all-the-icons)
 #+end_src
+** Prettify Symbols
+Make some word or string show as pretty Unicode symbols.
+#+begin_src emacs-lisp
+  (global-prettify-symbols-mode 1)
+  (defun add-pretty-lambda ()
+    (setq prettify-symbols-alist
+	  '(
+	    ("lambda" . 955)
+	    ("delta" . 120517)
+	    ("epsilon" . 120518)
+	    ("->" . 8594)
+	    ("<=" . 8804)
+	    (">=" . 8805)
+	    )))
+  (add-hook 'prog-mode-hook 'add-pretty-lambda)
+  (add-hook 'org-mode-hook 'add-pretty-lambda)
+#+end_src
+
 ** Doom Theme
 #+begin_src emacs-lisp
   (use-package doom-themes
@@ -265,6 +282,37 @@ End =doom-themes=
     :diminish
     :init (global-page-break-lines-mode))
 #+end_src
+** Smooth Scolling
+#+begin_src emacs-lisp
+  ;; Vertical Scroll
+  (setq scroll-step 1)
+  (setq scroll-margin 1)
+  (setq scroll-conservatively 101)
+  (setq scroll-up-aggressively 0.01)
+  (setq scroll-down-aggressively 0.01)
+  (setq auto-window-vscroll nil)
+  (setq fast-but-imprecise-scrolling nil)
+  (setq mouse-wheel-scroll-amount '(1 ((shift) . 1)))
+  (setq mouse-wheel-progressive-speed nil)
+  ;; Horizontal Scroll
+  (setq hscroll-step 1)
+  (setq hscroll-margin 1)
+#+end_src
+
+* Bindings
+** Which Key
+Displays keybindings
+#+begin_src emacs-lisp
+  (use-package which-key
+    :diminish
+    :custom
+    (which-key-separator " ")
+    (which-key-prefix-prefix "+")
+    :config
+    (setq which-key-idle-delay 0)
+    (which-key-mode))
+#+end_src
+* Navigation
 * Org
 ** Org Load Path
 #+begin_src emacs-lisp

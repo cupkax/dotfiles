@@ -27,8 +27,8 @@
 
 (defun update-to-load-path (folder)
   "Update FOLDER and its subdirectories to `load-path'."
-  (let ((base folder))
-    (unless (member base load-path)
+  (let ((base folder)) 
+   (unless (member base load-path)
       (add-to-list 'load-path base))
     (dolist (f (directory-files base))
       (let ((name (concat base "/" f)))
@@ -132,8 +132,7 @@
          ("C-h h" . nil)))
 
 ;; Input Mono, Monaco Style, Line Height 1.3 download from http://input.fontbureau.com/
-(defvar font-list-default '(("FiraCode Nerd Font" . 12) ("JetBrainsMono Nerd Font" . 12)))
-(defvar font-list-fixed-pitch '(("FiraCode Nerd Font" . 12) ("JetBrainsMono Nerd Font" . 12)))
+(defvar font-list '(("FiraCode Nerd Font" . 12) ("JetBrainsMono Nerd Font" . 12)))
 
 (defun change-font ()
   "Documentation."
@@ -156,6 +155,20 @@
   (change-font))
 
 (use-package all-the-icons)
+
+(global-prettify-symbols-mode 1)
+(defun add-pretty-lambda ()
+  (setq prettify-symbols-alist
+	'(
+	  ("lambda" . 955)
+	  ("delta" . 120517)
+	  ("epsilon" . 120518)
+	  ("->" . 8594)
+	  ("<=" . 8804)
+	  (">=" . 8805)
+	  )))
+(add-hook 'prog-mode-hook 'add-pretty-lambda)
+(add-hook 'org-mode-hook 'add-pretty-lambda)
 
 (use-package doom-themes
   :config
@@ -193,6 +206,29 @@
 (use-package page-break-lines
   :diminish
   :init (global-page-break-lines-mode))
+
+;; Vertical Scroll
+(setq scroll-step 1)
+(setq scroll-margin 1)
+(setq scroll-conservatively 101)
+(setq scroll-up-aggressively 0.01)
+(setq scroll-down-aggressively 0.01)
+(setq auto-window-vscroll nil)
+(setq fast-but-imprecise-scrolling nil)
+(setq mouse-wheel-scroll-amount '(1 ((shift) . 1)))
+(setq mouse-wheel-progressive-speed nil)
+;; Horizontal Scroll
+(setq hscroll-step 1)
+(setq hscroll-margin 1)
+
+(use-package which-key
+  :diminish
+  :custom
+  (which-key-separator " ")
+  (which-key-prefix-prefix "+")
+  :config
+  (setq which-key-idle-delay 0)
+  (which-key-mode))
 
 (use-package org
   :load-path ("~/vendor/org-mode/lisp" "~/vendor/org-mode/contrib/lisp"))
