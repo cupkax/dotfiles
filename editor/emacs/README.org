@@ -300,6 +300,10 @@ End =doom-themes=
 #+end_src
 
 * Bindings
+** ESC Cancel
+#+begin_src emacs-lisp
+(global-set-key (kbd "<escape>") 'keyboard-escape-quit)
+#+end_src
 ** Which Key
 Displays keybindings
 #+begin_src emacs-lisp
@@ -313,6 +317,317 @@ Displays keybindings
     (which-key-mode))
 #+end_src
 * Navigation
+** Ivy
+*** Ivy Config
+#+begin_src emacs-lisp
+  (use-package ivy
+    :diminish
+    :init
+    (use-package amx :defer t)
+    (use-package swiper :defer t)
+    (ivy-mode 1)
+    :bind (("C-s" . swiper)
+	   :map ivy-minibuffer-map
+	   ("TAB" . ivy-alt-done)))
+#+end_src
+
+*** Counsel
+#+begin_src emacs-lisp
+  (use-package counsel
+    :bind (("M-x"      . counsel-M-x)
+	   ("C-x C-f"  . counsel-find-file)
+	   ("C-x b"    . counsel-ibuffer))
+    :config
+    (setq ivy-initial-input-alist nil)) ; Remove ^ in searches
+#+end_src
+
+*** Flx
+#+begin_src emacs-lisp
+  (use-package flx  ;; Improves sorting for fuzzy-matched results
+    :defer t
+    :init
+    (setq ivy-flx-limit 10000))
+#+end_src
+
+*** Smex
+#+begin_src emacs-lisp
+  (use-package smex ;; Adds M-x recent command sorting for counsel-M-x
+    :defer 1
+    :after counsel)
+#+end_src
+
+* Development
+** Languages
+*** Language Server Protocol
+**** LSP Mode
+#+begin_src emacs-lisp
+  (use-package lsp-mode
+    :defer t
+    :commands lsp
+    :bind (:map lsp-mode-map
+		("C-c C-f" . lsp-format-buffer))
+    :hook ((java-mode python-mode go-mode
+	    js-mode js2-mode typescript-mode web-mode
+	    c-mode c++-mode objc-mode) . lsp)
+    :custom
+    (lsp-auto-guess-root nil)
+    (lsp-prefer-flymake nil) ; Use flycheck instead of flymake
+    (lsp-file-watch-threshold 2000)
+    (read-process-output-max (* 1024 1024))
+    (lsp-eldoc-hook nil))
+#+end_src
+
+**** LSP UI
+#+begin_src emacs-lisp
+  (use-package lsp-ui
+    :after lsp-mode
+    :diminish
+    :hook (lsp-mode . lsp-ui-mode)
+    :custom-face
+    (lsp-ui-doc-background ((t (:background nil))))
+    (lsp-ui-doc-header ((t (:inherit (font-lock-string-face italic)))))
+    :custom
+    (lsp-ui-doc-header t)
+    (lsp-ui-doc-include-signature t)
+    (lsp-ui-doc-border (face-foreground 'default))
+    (lsp-ui-sideline-enable nil)
+    (lsp-ui-sideline-ignore-duplicate t)
+    (lsp-ui-sideline-show-code-actions nil)
+    :config
+    (setq lsp-ui-sideline-enable t)
+    (setq lsp-ui-sideline-show-hover nil)
+    (setq lsp-ui-doc-position 'bottom)
+    (lsp-ui-doc-show))
+#+end_src
+
+** Productivity
+*** Syntax Checking
+#+begin_src emacs-lisp
+  (use-package flycheck
+    :defer t
+    :diminish
+    :hook ((prog-mode markdown-mode) . flycheck-mode)
+    :custom
+    (flycheck-global-modes
+     '(not text-mode outline-mode fundamental-mode org-mode
+	   diff-mode shell-mode eshell-mode term-mode))
+    (flycheck-emacs-lisp-load-path 'inherit)
+    (flycheck-indication-mode 'right-fringe)
+    :init
+    (use-package flycheck-grammarly :defer t)
+    (if (display-graphic-p)
+	(use-package flycheck-posframe
+	  :custom-face (flycheck-posframe-border-face ((t (:inherit default))))
+	  :hook (flycheck-mode . flycheck-posframe-mode)
+	  :custom
+	  (flycheck-posframe-border-width 1)
+	  (flycheck-posframe-inhibit-functions
+	   '((lambda (&rest _) (bound-and-true-p company-backend)))))
+      (use-package flycheck-pos-tip
+	:defines flycheck-pos-tip-timeout
+	:hook (flycheck-mode . flycheck-pos-tip-mode)
+	:custom (flycheck-pos-tip-timeout 30)))
+    :config
+    (when (fboundp 'define-fringe-bitmap)
+      (define-fringe-bitmap 'flycheck-fringe-bitmap-double-arrow
+	[16 48 112 240 112 48 16] nil nil 'center)))
+#+end_src
+
+#+RESULTS:
+: #s(hash-table size 65 test eql rehash-size 1.5 rehash-threshold 0.8125 data (:use-package (24523 54223 484822 0) :init (24523 54223 484816 0) :init-secs (0 0 387 0) :use-package-secs (0 0 425 0) :config (24523 54223 484812 0) :config-secs (0 0 23 0)))
+
+*** Format All
+#+begin_src emacs-lisp
+(use-package format-all
+  :bind ("C-c C-f" . format-all-buffer))
+#+end_src
+
+*** Indention
+Highlint indention
+#+begin_src emacs-lisp
+  (use-package highlight-indent-guides
+    :diminish
+    :hook ((prog-mode) . highlight-indent-guides-mode)
+    :custom
+    (highlight-indent-guides-method 'character)
+    (highlight-indent-guides-responsive 'top)
+    (highlight-indent-guides-delay 0)
+    (highlight-indent-guides-auto-character-face-perc 7))
+#+end_src
+*** Company
+**** Company Mode
+#+begin_src emacs-lisp
+  (use-package company
+    :diminish company-mode
+    :hook ((prog-mode LaTeX-mode latex-mode ess-r-mode) . company-mode)
+    :bind
+    (:map company-active-map
+	  ([tab] . smarter-tab-to-complete)
+	  ("TAB" . smarter-tab-to-complete))
+    :custom
+    (company-minimum-prefix-length 1)
+    (company-tooltip-align-annotations t)
+    (company-require-match 'never)
+    ;; Don't use company in the following modes
+    (company-global-modes '(not shell-mode eaf-mode))
+    ;; Trigger completion immediately.
+    (company-idle-delay 0.1)
+    ;; Number the candidates (use M-1, M-2 etc to select completions).
+    (company-show-numbers t)
+    :config
+    (unless clangd-p (delete 'company-clang company-backends))
+    (global-company-mode 1)
+    (defun smarter-tab-to-complete ()
+      "Try to `org-cycle', `yas-expand', and `yas-next-field' at current cursor position.
+
+  If all failed, try to complete the common part with `company-complete-common'"
+      (interactive)
+      (if yas-minor-mode
+	  (let ((old-point (point))
+		(old-tick (buffer-chars-modified-tick))
+		(func-list '(org-cycle yas-expand yas-next-field)))
+	    (catch 'func-suceed
+	      (dolist (func func-list)
+		(ignore-errors (call-interactively func))
+		(unless (and (eq old-point (point))
+			     (eq old-tick (buffer-chars-modified-tick)))
+		  (throw 'func-suceed t)))
+	      (company-complete-common))))))
+#+end_src
+
+**** Company Box
+#+begin_src emacs-lisp
+(use-package company-box
+  :diminish
+  :if (display-graphic-p)
+  :defines company-box-icons-all-the-icons
+  :hook (company-mode . company-box-mode)
+  :custom
+  (company-box-backends-colors nil)
+  :config
+  (with-no-warnings
+    ;; Prettify icons
+    (defun my-company-box-icons--elisp (candidate)
+      (when (derived-mode-p 'emacs-lisp-mode)
+        (let ((sym (intern candidate)))
+          (cond ((fboundp sym) 'Function)
+                ((featurep sym) 'Module)
+                ((facep sym) 'Color)
+                ((boundp sym) 'Variable)
+                ((symbolp sym) 'Text)
+                (t . nil)))))
+    (advice-add #'company-box-icons--elisp :override #'my-company-box-icons--elisp))
+
+  (when (and (display-graphic-p)
+             (require 'all-the-icons nil t))
+    (declare-function all-the-icons-faicon 'all-the-icons)
+    (declare-function all-the-icons-material 'all-the-icons)
+    (declare-function all-the-icons-octicon 'all-the-icons)
+    (setq company-box-icons-all-the-icons
+          `((Unknown . ,(all-the-icons-material "find_in_page" :height 0.8 :v-adjust -0.15))
+            (Text . ,(all-the-icons-faicon "text-width" :height 0.8 :v-adjust -0.02))
+            (Method . ,(all-the-icons-faicon "cube" :height 0.8 :v-adjust -0.02 :face 'all-the-icons-purple))
+            (Function . ,(all-the-icons-faicon "cube" :height 0.8 :v-adjust -0.02 :face 'all-the-icons-purple))
+            (Constructor . ,(all-the-icons-faicon "cube" :height 0.8 :v-adjust -0.02 :face 'all-the-icons-purple))
+            (Field . ,(all-the-icons-octicon "tag" :height 0.85 :v-adjust 0 :face 'all-the-icons-lblue))
+            (Variable . ,(all-the-icons-octicon "tag" :height 0.85 :v-adjust 0 :face 'all-the-icons-lblue))
+            (Class . ,(all-the-icons-material "settings_input_component" :height 0.8 :v-adjust -0.15 :face 'all-the-icons-orange))
+            (Interface . ,(all-the-icons-material "share" :height 0.8 :v-adjust -0.15 :face 'all-the-icons-lblue))
+            (Module . ,(all-the-icons-material "view_module" :height 0.8 :v-adjust -0.15 :face 'all-the-icons-lblue))
+            (Property . ,(all-the-icons-faicon "wrench" :height 0.8 :v-adjust -0.02))
+            (Unit . ,(all-the-icons-material "settings_system_daydream" :height 0.8 :v-adjust -0.15))
+            (Value . ,(all-the-icons-material "format_align_right" :height 0.8 :v-adjust -0.15 :face 'all-the-icons-lblue))
+            (Enum . ,(all-the-icons-material "storage" :height 0.8 :v-adjust -0.15 :face 'all-the-icons-orange))
+            (Keyword . ,(all-the-icons-material "filter_center_focus" :height 0.8 :v-adjust -0.15))
+            (Snippet . ,(all-the-icons-material "format_align_center" :height 0.8 :v-adjust -0.15))
+            (Color . ,(all-the-icons-material "palette" :height 0.8 :v-adjust -0.15))
+            (File . ,(all-the-icons-faicon "file-o" :height 0.8 :v-adjust -0.02))
+            (Reference . ,(all-the-icons-material "collections_bookmark" :height 0.8 :v-adjust -0.15))
+            (Folder . ,(all-the-icons-faicon "folder-open" :height 0.8 :v-adjust -0.02))
+            (EnumMember . ,(all-the-icons-material "format_align_right" :height 0.8 :v-adjust -0.15))
+            (Constant . ,(all-the-icons-faicon "square-o" :height 0.8 :v-adjust -0.1))
+            (Struct . ,(all-the-icons-material "settings_input_component" :height 0.8 :v-adjust -0.15 :face 'all-the-icons-orange))
+            (Event . ,(all-the-icons-octicon "zap" :height 0.8 :v-adjust 0 :face 'all-the-icons-orange))
+            (Operator . ,(all-the-icons-material "control_point" :height 0.8 :v-adjust -0.15))
+            (TypeParameter . ,(all-the-icons-faicon "arrows" :height 0.8 :v-adjust -0.02))
+            (Template . ,(all-the-icons-material "format_align_left" :height 0.8 :v-adjust -0.15)))
+          company-box-icons-alist 'company-box-icons-all-the-icons)))
+#+end_src
+
+#+RESULTS:
+: #s(hash-table size 65 test eql rehash-size 1.5 rehash-threshold 0.8125 data (:use-package (24523 54119 824986 0) :init (24523 54119 824980 0) :init-secs (0 0 195 0) :use-package-secs (0 0 240 0) :config (24523 54119 824972 0) :config-secs (0 0 181 0)))
+
+*** Snippets
+#+begin_src emacs-lisp
+(use-package yasnippet
+  :hook (prog-mode . yas-minor-mode)
+  :config
+  (yas-reload-all))
+#+end_src
+
+*** Paren
+**** Smart Paren
+#+begin_src emacs-lisp
+  (use-package smartparens
+    :hook (prog-mode . smartparens-mode)
+    :diminish smartparens-mode
+    :config
+    ;; Stop pairing single quotes in elisp
+    (sp-local-pair 'emacs-lisp-mode "'" nil :actions nil)
+    (sp-local-pair 'org-mode "[" nil :actions nil))
+#+end_src
+
+**** Match Paren
+#+begin_src emacs-lisp
+;; Show matching parenthesis
+(show-paren-mode 1)
+;; we will call `blink-matching-open` ourselves...
+(remove-hook 'post-self-insert-hook
+             #'blink-paren-post-self-insert-function)
+
+;; this still needs to be set for `blink-matching-open` to work
+(setq blink-matching-paren 'show)
+(let ((ov nil)) ; keep track of the overlay
+  (advice-add
+   #'show-paren-function
+   :after
+    (defun show-paren--off-screen+ (&rest _args)
+      "Display matching line for off-screen paren."
+      (when (overlayp ov)
+        (delete-overlay ov))
+      ;; check if it's appropriate to show match info,
+      ;; see `blink-paren-post-self-insert-function'
+      (when (and (overlay-buffer show-paren--overlay)
+                 (not (or cursor-in-echo-area
+                          executing-kbd-macro
+                          noninteractive
+                          (minibufferp)
+                          this-command))
+                 (and (not (bobp))
+                      (memq (char-syntax (char-before)) '(?\) ?\$)))
+                 (= 1 (logand 1 (- (point)
+                                   (save-excursion
+                                     (forward-char -1)
+                                     (skip-syntax-backward "/\\")
+                                     (point))))))
+        ;; rebind `minibuffer-message' called by
+        ;; `blink-matching-open' to handle the overlay display
+        (cl-letf (((symbol-function #'minibuffer-message)
+                   (lambda (msg &rest args)
+                     (let ((msg (apply #'format-message msg args)))
+                       (setq ov (display-line-overlay+
+                                 (window-start) msg))))))
+          (blink-matching-open))))))
+#+end_src
+
+#+RESULTS:
+
+**** Rainbow
+#+begin_src emacs-lisp
+(use-package rainbow-delimiters
+  :hook (prog-mode . rainbow-delimiters-mode))
+#+end_src
+
 * Org
 ** Org Load Path
 #+begin_src emacs-lisp
@@ -321,9 +636,10 @@ Displays keybindings
 #+end_src
 
 ** Org Basic Config
+*** Orb Structure Template
 #+begin_src emacs-lisp
   (use-package org
     :config
     (setq org-structure-template-alist
-          '(("e" . "src emacs-lisp"))))
+	'(("e" . "src emacs-lisp"))))
 #+end_src
