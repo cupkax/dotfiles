@@ -1,6 +1,71 @@
 #+TITLE: Emacs Config
 #+PROPERTY: header-args emacs-lisp :tangle "~/dotfiles/editor/emacs/init.el"
 
+* Table of Contents                                                     :TOC_3:
+- [[#startup][Startup]]
+  - [[#lexical-binding][Lexical Binding]]
+  - [[#garbage-collection][Garbage Collection]]
+  - [[#load-path][Load Path]]
+  - [[#define-constants][Define Constants]]
+  - [[#utf-8-coding-system][UTF-8 Coding System]]
+- [[#package-management][Package Management]]
+  - [[#package-archives][Package Archives]]
+  - [[#configure-package-manager][Configure Package Manager]]
+  - [[#use-package][Use Package]]
+  - [[#auto-update-packages][Auto update packages]]
+  - [[#diminish][Diminish]]
+- [[#personal-information][Personal Information]]
+- [[#user-interface][User Interface]]
+  - [[#disable-redundant-ui-component][Disable redundant UI component]]
+  - [[#line-numbers][Line Numbers]]
+  - [[#fonts-and-icons][Fonts and Icons]]
+    - [[#fonts][Fonts]]
+    - [[#all-the-icons][All the icons]]
+  - [[#prettify-symbols][Prettify Symbols]]
+  - [[#doom-theme][Doom Theme]]
+  - [[#modeline][Modeline]]
+    - [[#doom-modeline][Doom Modeline]]
+    - [[#current-time][Current Time]]
+    - [[#yesno---yn][Yes/No -> y/n]]
+  - [[#page-break-lines][Page Break Lines]]
+  - [[#smooth-scolling][Smooth Scolling]]
+- [[#bindings][Bindings]]
+  - [[#leader-general][Leader General]]
+  - [[#which-key][Which Key]]
+  - [[#esc-cancel][ESC Cancel]]
+  - [[#universal-argument-rebind][=universal argument= rebind]]
+  - [[#evil][Evil]]
+  - [[#hydra][Hydra]]
+- [[#navigation][Navigation]]
+  - [[#ivy][Ivy]]
+    - [[#ivy-config][Ivy Config]]
+    - [[#counsel][Counsel]]
+    - [[#flx][Flx]]
+    - [[#smex][Smex]]
+  - [[#undo-tree][Undo tree]]
+- [[#buffer-and-window-management][Buffer and Window Management]]
+  - [[#buffer-management][Buffer Management]]
+  - [[#window-management][Window Management]]
+    - [[#frame-scaling--zooming][Frame Scaling / Zooming]]
+    - [[#window-selection-ace-window][Window Selection =ace-window=]]
+    - [[#windows-history-winner-mode][Windows History =winner-mode=]]
+- [[#development][Development]]
+  - [[#languages][Languages]]
+    - [[#language-server-protocol][Language Server Protocol]]
+  - [[#productivity][Productivity]]
+    - [[#syntax-checking][Syntax Checking]]
+    - [[#format-all][Format All]]
+    - [[#indention][Indention]]
+    - [[#company][Company]]
+    - [[#paren][Paren]]
+- [[#org][Org]]
+  - [[#org-load-path][Org Load Path]]
+  - [[#org-config][Org Config]]
+    - [[#org-basic-setup][Org Basic Setup]]
+    - [[#org-source-code-blocks][Org Source Code Blocks]]
+    - [[#tangle-on-save][Tangle On Save]]
+  - [[#toc-org][TOC Org]]
+
 * Startup
 ** Lexical Binding
 #+begin_src emacs-lisp
@@ -41,20 +106,20 @@ Garbage Collect when Emacs is out of focus and avoid garbage collection when usi
 #+end_src
 ** Load Path
 #+begin_src emacs-lisp
-  (defun update-to-load-path (folder)
-    "Update FOLDER and its subdirectories to `load-path'."
-    (let ((base folder)) 
-     (unless (member base load-path)
-        (add-to-list 'load-path base))
-      (dolist (f (directory-files base))
-        (let ((name (concat base "/" f)))
-          (when (and (file-directory-p name)
-                     (not (equal f ".."))
-                     (not (equal f ".")))
-            (unless (member base load-path)
-              (add-to-list 'load-path name)))))))
+(defun update-to-load-path (folder)
+  "Update FOLDER and its subdirectories to `load-path'."
+  (let ((base folder))
+    (unless (member base load-path)
+      (add-to-list 'load-path base))
+    (dolist (f (directory-files base))
+      (let ((name (concat base "/" f)))
+        (when (and (file-directory-p name)
+                   (not (equal f ".."))
+                   (not (equal f ".")))
+          (unless (member base load-path)
+            (add-to-list 'load-path name)))))))
 
-  (update-to-load-path (expand-file-name "elisp" user-emacs-directory))
+(update-to-load-path (expand-file-name "elisp" user-emacs-directory))
 #+end_src
 ** Define Constants
 #+begin_src emacs-lisp
@@ -65,10 +130,6 @@ Garbage Collect when Emacs is out of focus and avoid garbage collection when usi
   (defconst *sys/linux*
     (eq system-type 'gnu/linux)
     "Are we running on a GNU/Linux system?")
-
-  (defconst *sys/mac*
-    (eq system-type 'darwin)
-    "Are we running on a Mac system?")
 
   (defconst python-p
     (or (executable-find "python3")
@@ -82,16 +143,26 @@ Garbage Collect when Emacs is out of focus and avoid garbage collection when usi
              (> (length (shell-command-to-string "pip --version | grep 'python 3'")) 0)))
     "Do we have pip3?")
 
-  (defconst clangd-p
-    (or (executable-find "clangd")  ;; usually
-        (executable-find "/usr/local/opt/llvm/bin/clangd"))  ;; macOS
-    "Do we have clangd?")
-
   (defconst eaf-env-p
     (and *sys/linux* (display-graphic-p) python-p pip-p
          (not (equal (shell-command-to-string "pip freeze | grep '^PyQt\\|PyQtWebEngine'") "")))
     "Do we have EAF environment setup?")
 #+end_src
+** UTF-8 Coding System
+#+begin_src emacs-lisp
+(unless *sys/win32*
+  (set-selection-coding-system 'utf-8)
+  (prefer-coding-system 'utf-8)
+  (set-language-environment "UTF-8")
+  (set-default-coding-systems 'utf-8)
+  (set-terminal-coding-system 'utf-8)
+  (set-keyboard-coding-system 'utf-8)
+  (setq locale-coding-system 'utf-8))
+;; Treat clipboard input as UTF-8 string first; compound text next, etc.
+(when (display-graphic-p)
+  (setq x-select-request-type '(UTF8_STRING COMPOUND_TEXT TEXT STRING)))
+#+end_src
+
 * Package Management
 ** Package Archives
 #+begin_src emacs-lisp
@@ -435,10 +506,20 @@ Displays keybindings
     :after counsel)
 #+end_src
 
+** Undo tree
+#+begin_src emacs-lisp
+(use-package undo-tree
+  :diminish undo-tree-mode
+  :config
+  (progn
+    (global-undo-tree-mode)
+    (setq undo-tree-visualizer-timestamps t)
+    (setq undo-tree-visualizer-diff t)))
+#+end_src
+
 * Buffer and Window Management
 ** Buffer Management
 #+begin_src emacs-lisp
-  (use-package bufler)
 #+end_src
 
 ** Window Management
@@ -584,7 +665,6 @@ Highlint indention
     ;; Number the candidates (use M-1, M-2 etc to select completions).
     (company-show-numbers t)
     :config
-    (unless clangd-p (delete 'company-clang company-backends))
     (global-company-mode 1)
     (defun smarter-tab-to-complete ()
       "Try to `org-cycle', `yas-expand', and `yas-next-field' at current cursor position.
@@ -678,51 +758,6 @@ Highlint indention
     (sp-local-pair 'org-mode "[" nil :actions nil))
 #+end_src
 
-**** Match Paren
-#+begin_src emacs-lisp
-;; Show matching parenthesis
-(show-paren-mode 1)
-;; we will call `blink-matching-open` ourselves...
-(remove-hook 'post-self-insert-hook
-             #'blink-paren-post-self-insert-function)
-
-;; this still needs to be set for `blink-matching-open` to work
-(setq blink-matching-paren 'show)
-(let ((ov nil)) ; keep track of the overlay
-  (advice-add
-   #'show-paren-function
-   :after
-    (defun show-paren--off-screen+ (&rest _args)
-      "Display matching line for off-screen paren."
-      (when (overlayp ov)
-        (delete-overlay ov))
-      ;; check if it's appropriate to show match info,
-      ;; see `blink-paren-post-self-insert-function'
-      (when (and (overlay-buffer show-paren--overlay)
-                 (not (or cursor-in-echo-area
-                          executing-kbd-macro
-                          noninteractive
-                          (minibufferp)
-                          this-command))
-                 (and (not (bobp))
-                      (memq (char-syntax (char-before)) '(?\) ?\$)))
-                 (= 1 (logand 1 (- (point)
-                                   (save-excursion
-                                     (forward-char -1)
-                                     (skip-syntax-backward "/\\")
-                                     (point))))))
-        ;; rebind `minibuffer-message' called by
-        ;; `blink-matching-open' to handle the overlay display
-        (cl-letf (((symbol-function #'minibuffer-message)
-                   (lambda (msg &rest args)
-                     (let ((msg (apply #'format-message msg args)))
-                       (setq ov (display-line-overlay+
-                                 (window-start) msg))))))
-          (blink-matching-open))))))
-#+end_src
-
-#+RESULTS:
-
 **** Rainbow
 #+begin_src emacs-lisp
 (use-package rainbow-delimiters
@@ -736,11 +771,51 @@ Highlint indention
     :load-path ("~/vendor/org-mode/lisp" "~/vendor/org-mode/contrib/lisp"))
 #+end_src
 
-** Org Basic Config
-*** Orb Structure Template
+** Org Config
+*** Org Basic Setup
+#+begin_src emacs-lisp
+  (use-package org
+    :init
+    (setq org-imenu-depth 7))
+#+end_src
+**** Org Directories
+#+begin_src emacs-lisp
+  (setq org-directory "~/Dropbox/org/")
+#+end_src
+
+*** Org Source Code Blocks
+#+begin_src emacs-lisp
+  (use-package org
+    :config
+    (setq org-src-window-setup 'current-window)
+    (setq org-edit-src-persistent-message nil)
+    (setq org-src-fontify-natively t)
+    (setq org-src-preserve-indentation t)
+    (setq org-src-tab-acts-natively t)
+    (setq org-edit-src-content-indentation 0)
+    (setq org-hide-block-startup t))
+#+end_src
+
+**** Org Structure Template
 #+begin_src emacs-lisp
   (use-package org
     :config
     (setq org-structure-template-alist
 	'(("e" . "src emacs-lisp"))))
+#+end_src
+
+*** Tangle On Save
+#+begin_src emacs-lisp
+(defun my/org-babel-tangle-save ()
+  (let ((org-confirm-babel-evaluate nil))
+    (org-babel-tangle)))
+
+(add-hook 'org-mode-hook (lambda () (add-hook 'after-save-hook #'my/org-babel-tangle-save
+                                         'run-at-end 'only-in-org-mode)))
+#+end_src
+
+** TOC Org
+#+begin_src emacs-lisp
+(use-package toc-org
+  :hook (org-mode . toc-org-mode))
 #+end_src
