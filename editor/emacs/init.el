@@ -128,8 +128,24 @@
   (setq use-dialog-box t)               ; only for mouse events
   (setq inhibit-splash-screen t)
   :bind (("C-z" . nil)
-         ("C-x C-z" . nil)
-         ("C-h h" . nil)))
+	 ("C-x C-z" . nil)
+	 ("C-h h" . nil)))
+
+(setq vc-follow-symlinks t)
+
+(setq ad-redefinition-action 'accept)
+
+(column-number-mode)
+
+; Enable line numbers for some modes
+(dolist (mode '(text-mode-hook
+                prog-mode-hook
+                conf-mode-hook))
+  (add-hook mode (lambda () (display-line-numbers-mode 1))))
+
+;; Override some modes which derive from the above
+(dolist (mode '(org-mode-hook))
+  (add-hook mode (lambda () (display-line-numbers-mode 0))))
 
 ;; Input Mono, Monaco Style, Line Height 1.3 download from http://input.fontbureau.com/
 (defvar font-list '(("FiraCode Nerd Font" . 12) ("JetBrainsMono Nerd Font" . 12)))
@@ -221,7 +237,16 @@
 (setq hscroll-step 1)
 (setq hscroll-margin 1)
 
-(global-set-key (kbd "<escape>") 'keyboard-escape-quit)
+(use-package general
+  :config
+  (general-evil-setup t)
+
+  (general-create-definer my/leader-key-def
+			  :keymap '(normal insert visual emacs)
+			  :prefix "SPC"
+			  :global-prefix "C-SPC")
+  (general-create-definer my/ctrl-c-def
+			  :prefix "C-c"))
 
 (use-package which-key
   :diminish
@@ -232,6 +257,30 @@
   (setq which-key-idle-delay 0)
   (which-key-mode))
 
+(global-set-key (kbd "<escape>") 'keyboard-escape-quit)
+
+(global-set-key (kbd "C-M-u") 'universal-argument)
+
+(use-package evil
+  :init
+  (setq evil-want-integration t)
+  (setq evil-want-keybinding  nil)
+  (setq evil-want-C-u-scroll  t)
+  (setq evil-want-C-i-jump    nil)
+  (setq evil-respect-visual-line-mode t)
+  :config
+  (evil-mode 1))
+
+(use-package evil-collection
+  :after evil
+  :custom
+  (evil-collection-outline-bind-tab-p nil)
+  :config
+  (evil-collection-init))
+
+(use-package hydra
+  :defer 1)
+
 (use-package ivy
   :diminish
   :init
@@ -240,7 +289,16 @@
   (ivy-mode 1)
   :bind (("C-s" . swiper)
 	 :map ivy-minibuffer-map
-	 ("TAB" . ivy-alt-done)))
+	 ("TAB" . ivy-alt-done))
+  :config
+  (setq ivy-use-virtual-buffers t)
+  (setq ivy-wrap t)
+  (setq ivy-count-format"(%d/%d) ")
+  (setq enable-recursive-minibuffers t))
+
+(use-package ivy-hydra
+  :defer t
+  :after hydra)
 
 (use-package counsel
   :bind (("M-x"      . counsel-M-x)
@@ -257,6 +315,22 @@
 (use-package smex ;; Adds M-x recent command sorting for counsel-M-x
   :defer 1
   :after counsel)
+
+(use-package bufler)
+
+(use-package default-text-scale
+  :defer 1
+  :config
+  (default-text-scale-mode))
+
+(use-package ace-window
+  :bind (("M-o" . ace-window))
+  :config
+  (setq aw-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l)))
+
+(winner-mode)
+(define-key evil-window-map "u" 'winner-undo)
+(define-key evil-window-map "r" 'winner-redo)
 
 (use-package lsp-mode
   :defer t
@@ -426,11 +500,6 @@ If all failed, try to complete the common part with `company-complete-common'"
             (TypeParameter . ,(all-the-icons-faicon "arrows" :height 0.8 :v-adjust -0.02))
             (Template . ,(all-the-icons-material "format_align_left" :height 0.8 :v-adjust -0.15)))
           company-box-icons-alist 'company-box-icons-all-the-icons)))
-
-(use-package yasnippet
-  :hook (prog-mode . yas-minor-mode)
-  :config
-  (yas-reload-all))
 
 (use-package smartparens
   :hook (prog-mode . smartparens-mode)
