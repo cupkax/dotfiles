@@ -65,15 +65,7 @@
          (not (equal (shell-command-to-string "pip freeze | grep '^PyQt\\|PyQtWebEngine'") "")))
     "Do we have EAF environment setup?")
 
-(unless *sys/win32*
-  (set-selection-coding-system 'utf-8)
-  (prefer-coding-system 'utf-8)
-  (set-language-environment "UTF-8")
-  (set-default-coding-systems 'utf-8)
-  (set-terminal-coding-system 'utf-8)
-  (set-keyboard-coding-system 'utf-8)
-  (setq locale-coding-system 'utf-8))
-;; Treat clipboard input as UTF-8 string first; compound text next, etc.
+(prefer-coding-system 'utf-8)
 (when (display-graphic-p)
   (setq x-select-request-type '(UTF8_STRING COMPOUND_TEXT TEXT STRING)))
 
@@ -150,28 +142,38 @@
 (dolist (mode '(org-mode-hook))
   (add-hook mode (lambda () (display-line-numbers-mode 0))))
 
-  ;; Input Mono, Monaco Style, Line Height 1.3 download from http://input.fontbureau.com/
-  (defvar font-list '(("FiraCode Nerd Font" . 12) ("JetBrainsMono Nerd Font" . 12)))
+;; Set the font face based on platform
+ (set-face-attribute 'default nil :font "FiraCode Nerd Font"  :height 110)
 
-  (defun change-font ()
-    "Documentation."
-    (interactive)
-    (let* (available-fonts font-name font-size font-setting)
-      (dolist (font font-list (setq available-fonts (nreverse available-fonts)))
-	(when (member (car font) (font-family-list))
-	  (push font available-fonts)))
-      (if (not available-fonts)
-	  (message "No fonts from the chosen set are available")
-	(if (called-interactively-p 'interactive)
-	    (let* ((chosen (assoc-string (completing-read "What font to use? " available-fonts nil t) available-fonts)))
-	      (setq font-name (car chosen) font-size (read-number "Font size: " (cdr chosen))))
-	  (setq font-name (caar available-fonts) font-size (cdar available-fonts)))
-	(setq font-setting (format "%s-%d" font-name font-size))
-	(set-frame-font font-setting nil t)
-	(add-to-list 'default-frame-alist (cons 'font font-setting)))))
+;; Set the fixed pitch face
+(set-face-attribute 'fixed-pitch nil :font "FiraCode Nerd Font" :height 110)
 
-  (when (display-graphic-p)
-    (change-font))
+;; Set the variable pitch face
+(set-face-attribute 'variable-pitch nil :font "JetBrainsMono Nerd Font" :height 120)
+
+(defun my/replace-unicode-font-mapping (block-name old-font new-font)
+  (let* ((block-idx (cl-position-if
+                         (lambda (i) (string-equal (car i) block-name))
+                         unicode-fonts-block-font-mapping))
+         (block-fonts (cadr (nth block-idx unicode-fonts-block-font-mapping)))
+         (updated-block (cl-substitute new-font old-font block-fonts :test 'string-equal)))
+    (setf (cdr (nth block-idx unicode-fonts-block-font-mapping))
+          `(,updated-block))))
+
+(use-package unicode-fonts
+  :ensure t
+  :custom
+  (unicode-fonts-skip-font-groups '(low-quality-glyphs))
+  :config
+  ;; Fix the font mappings to use the right emoji font
+  (mapcar
+    (lambda (block-name)
+      (my/replace-unicode-font-mapping block-name "Apple Color Emoji" "Noto Color Emoji"))
+    '("Dingbats"
+      "Emoticons"
+      "Miscellaneous Symbols and Pictographs"
+      "Transport and Map Symbols"))
+  (unicode-fonts-setup))
 
   (use-package all-the-icons)
 
@@ -525,11 +527,35 @@
   (use-package org
     :load-path ("~/vendor/org-mode/lisp" "~/vendor/org-mode/contrib/lisp"))
 
-  (use-package org
-    :init
-    (setq org-imenu-depth 7))
+(defun my/org-mode-setup ()
+  (org-indent-mode)
+  (variable-pitch-mode 1)
+  (auto-fill-mode 0)
+  (visual-line-mode 1)
+  (setq evil-auto-indent nil)
+  (diminish org-indent-mode))
 
-  (setq org-directory "~/Dropbox/org/")
+(use-package org
+  :defer t
+  :diminish t
+  :hook (org-mode . my/org-mode-setup)
+  :config
+  (setq org-directory "~/Dropbox/org")
+  (setq org-ellipsis "  "))
+
+(use-package org-superstar
+  :after org
+  :hook (org-mode . org-superstar-mode)
+  :config
+  (setq org-pretty-entities t)
+  (setq org-hide-emphasis-markers t)
+  (setq org-agenda-block-separator "")
+  (setq org-fontify-whole-heading-line t)
+  (setq org-fontify-done-headline t)
+  (setq org-fontify-quote-and-verse-blocks t)
+  :custom
+  (org-superstar-remove-leading-stars t)
+  (org-superstar-headline-bullets-list '("◉" "○" "●" "○" "●" "○" "●")))
 
   (use-package org
     :config
@@ -552,6 +578,8 @@
 
 (add-hook 'org-mode-hook (lambda () (add-hook 'after-save-hook #'my/org-babel-tangle-save
                                          'run-at-end 'only-in-org-mode)))
+
+(use-package writeroom-mode)
 
 (use-package toc-org
   :hook (org-mode . toc-org-mode))

@@ -1,821 +1,1 @@
-#+TITLE: Emacs Config
-#+PROPERTY: header-args emacs-lisp :tangle "~/dotfiles/editor/emacs/init.el"
-
-* Table of Contents                                                     :TOC_3:
-- [[#startup][Startup]]
-  - [[#lexical-binding][Lexical Binding]]
-  - [[#garbage-collection][Garbage Collection]]
-  - [[#load-path][Load Path]]
-  - [[#define-constants][Define Constants]]
-  - [[#utf-8-coding-system][UTF-8 Coding System]]
-- [[#package-management][Package Management]]
-  - [[#package-archives][Package Archives]]
-  - [[#configure-package-manager][Configure Package Manager]]
-  - [[#use-package][Use Package]]
-  - [[#auto-update-packages][Auto update packages]]
-  - [[#diminish][Diminish]]
-- [[#personal-information][Personal Information]]
-- [[#user-interface][User Interface]]
-  - [[#disable-redundant-ui-component][Disable redundant UI component]]
-  - [[#line-numbers][Line Numbers]]
-  - [[#fonts-and-icons][Fonts and Icons]]
-    - [[#fonts][Fonts]]
-    - [[#all-the-icons][All the icons]]
-  - [[#prettify-symbols][Prettify Symbols]]
-  - [[#doom-theme][Doom Theme]]
-  - [[#modeline][Modeline]]
-    - [[#doom-modeline][Doom Modeline]]
-    - [[#current-time][Current Time]]
-    - [[#yesno---yn][Yes/No -> y/n]]
-  - [[#page-break-lines][Page Break Lines]]
-  - [[#smooth-scolling][Smooth Scolling]]
-- [[#bindings][Bindings]]
-  - [[#leader-general][Leader General]]
-  - [[#which-key][Which Key]]
-  - [[#esc-cancel][ESC Cancel]]
-  - [[#universal-argument-rebind][=universal argument= rebind]]
-  - [[#evil][Evil]]
-  - [[#hydra][Hydra]]
-- [[#navigation][Navigation]]
-  - [[#ivy][Ivy]]
-    - [[#ivy-config][Ivy Config]]
-    - [[#counsel][Counsel]]
-    - [[#flx][Flx]]
-    - [[#smex][Smex]]
-  - [[#undo-tree][Undo tree]]
-- [[#buffer-and-window-management][Buffer and Window Management]]
-  - [[#buffer-management][Buffer Management]]
-  - [[#window-management][Window Management]]
-    - [[#frame-scaling--zooming][Frame Scaling / Zooming]]
-    - [[#window-selection-ace-window][Window Selection =ace-window=]]
-    - [[#windows-history-winner-mode][Windows History =winner-mode=]]
-- [[#development][Development]]
-  - [[#languages][Languages]]
-    - [[#language-server-protocol][Language Server Protocol]]
-  - [[#productivity][Productivity]]
-    - [[#syntax-checking][Syntax Checking]]
-    - [[#format-all][Format All]]
-    - [[#indention][Indention]]
-    - [[#company][Company]]
-    - [[#paren][Paren]]
-- [[#org][Org]]
-  - [[#org-load-path][Org Load Path]]
-  - [[#org-config][Org Config]]
-    - [[#org-basic-setup][Org Basic Setup]]
-    - [[#org-source-code-blocks][Org Source Code Blocks]]
-    - [[#tangle-on-save][Tangle On Save]]
-  - [[#toc-org][TOC Org]]
-
-* Startup
-** Lexical Binding
-#+begin_src emacs-lisp
-  ;;; init.el --- -*- lexical-binding: t -*-
-#+end_src
-** Garbage Collection
-A large =gc-cons-threshold= may cause freezing and stuttering during long-term interactive use.
-If freezing, decrease this amount. If stuttering, increase this amount.
-#+begin_src emacs-lisp
-  (defvar better-gc-cons-threshold 67108864)
-  (add-hook 'emacs-startup-hook
-	    (lambda ()
-	      (setq gc-cons-threshold better-gc-cons-threshold)
-	      (setq file-name-handler-alist file-name-handler-alist-original)
-	      (makunbound 'file-name-handler-alist-original)))
-#+end_src
-
-Garbage Collect when Emacs is out of focus and avoid garbage collection when using minibuffer.
-
-#+begin_src emacs-lisp
-  (add-hook 'emacs-startup-hook
-            (lambda ()
-              (if (boundp 'after-focus-change-function)
-                  (add-function :after after-focus-change-function
-                                (lambda ()
-                                  (unless (frame-focus-state)
-                                    (garbage-collect))))
-                (add-hook 'after-focus-change-function 'garbage-collect))
-              (defun gc-minibuffer-setup-hook ()
-                (setq gc-cons-threshold (* better-gc-cons-threshold 2)))
-
-              (defun gc-minibuffer-exit-hook ()
-                (garbage-collect)
-                (setq gc-cons-threshold better-gc-cons-threshold))
-
-              (add-hook 'minibuffer-setup-hook #'gc-minibuffer-setup-hook)
-              (add-hook 'minibuffer-exit-hook #'gc-minibuffer-exit-hook)))
-#+end_src
-** Load Path
-#+begin_src emacs-lisp
-(defun update-to-load-path (folder)
-  "Update FOLDER and its subdirectories to `load-path'."
-  (let ((base folder))
-    (unless (member base load-path)
-      (add-to-list 'load-path base))
-    (dolist (f (directory-files base))
-      (let ((name (concat base "/" f)))
-        (when (and (file-directory-p name)
-                   (not (equal f ".."))
-                   (not (equal f ".")))
-          (unless (member base load-path)
-            (add-to-list 'load-path name)))))))
-
-(update-to-load-path (expand-file-name "elisp" user-emacs-directory))
-#+end_src
-** Define Constants
-#+begin_src emacs-lisp
-  (defconst *sys/win32*
-    (eq system-type 'windows-nt)
-    "Are we running on a WinTel system?")
-
-  (defconst *sys/linux*
-    (eq system-type 'gnu/linux)
-    "Are we running on a GNU/Linux system?")
-
-  (defconst python-p
-    (or (executable-find "python3")
-        (and (executable-find "python")
-             (> (length (shell-command-to-string "python --version | grep 'Python 3'")) 0)))
-    "Do we have python3?")
-
-  (defconst pip-p
-    (or (executable-find "pip3")
-        (and (executable-find "pip")
-             (> (length (shell-command-to-string "pip --version | grep 'python 3'")) 0)))
-    "Do we have pip3?")
-
-  (defconst eaf-env-p
-    (and *sys/linux* (display-graphic-p) python-p pip-p
-         (not (equal (shell-command-to-string "pip freeze | grep '^PyQt\\|PyQtWebEngine'") "")))
-    "Do we have EAF environment setup?")
-#+end_src
-** UTF-8 Coding System
-#+begin_src emacs-lisp
-(unless *sys/win32*
-  (set-selection-coding-system 'utf-8)
-  (prefer-coding-system 'utf-8)
-  (set-language-environment "UTF-8")
-  (set-default-coding-systems 'utf-8)
-  (set-terminal-coding-system 'utf-8)
-  (set-keyboard-coding-system 'utf-8)
-  (setq locale-coding-system 'utf-8))
-;; Treat clipboard input as UTF-8 string first; compound text next, etc.
-(when (display-graphic-p)
-  (setq x-select-request-type '(UTF8_STRING COMPOUND_TEXT TEXT STRING)))
-#+end_src
-
-* Package Management
-** Package Archives
-#+begin_src emacs-lisp
-  (setq package-user-dir (expand-file-name "elpa" user-emacs-directory)
-        package-archives
-        '(("gnu"   . "https://elpa.gnu.org/packages/")
-          ("melpa" . "https://melpa.org/packages/")))
-#+end_src
-** Configure Package Manager
-#+begin_src emacs-lisp
-  (unless (bound-and-true-p package--initialized)
-    (setq package-enable-at-startup nil)          ; To prevent initializing twice
-    (package-initialize))
-
-  ;; set use-package-verbose to t for interpreted .emacs,
-  ;; and to nil for byte-compiled .emacs.elc.
-  (eval-and-compile
-    (setq use-package-verbose (not (bound-and-true-p byte-compile-current-file))))
-#+end_src
-** Use Package
-#+begin_src emacs-lisp
-  ;; Install use-package if not installed
-  (unless (package-installed-p 'use-package)
-    (package-refresh-contents)
-    (package-install 'use-package))
-
-  (eval-and-compile
-    (setq use-package-always-ensure t)
-    (setq use-package-expand-minimally t)
-    (setq use-package-compute-statistics t)
-    (setq use-package-enable-imenu-support t))
-
-  (eval-when-compile
-    (require 'use-package)
-    (require 'bind-key))
-#+end_src
-** Auto update packages
-#+begin_src emacs-lisp
-  (use-package auto-package-update
-    :if (not (daemonp))
-    :custom
-    (auto-package-update-interval 7) ;; in days
-    (auto-package-update-prompt-before-update t)
-    (auto-package-update-delete-old-versions t)
-    (auto-package-update-hide-results t)
-    :config
-    (auto-package-update-maybe))
-#+end_src
-** Diminish
-#+begin_src emacs-lisp
-  (use-package diminish)
-#+end_src
-* Personal Information
-#+begin_src emacs-lisp
-  (setq user-full-name "Vedant Sansare")
-  (setq user-mail-address "vedantsansare23@gmail.com")
-#+end_src
-* User Interface
-** Disable redundant UI component
-#+begin_src emacs-lisp
-    (use-package emacs
-      :init
-      (menu-bar-mode -1)
-      (tool-bar-mode -1)
-      (scroll-bar-mode -1)
-      :config
-      (setq use-file-dialog nil)
-      (setq use-dialog-box t)               ; only for mouse events
-      (setq inhibit-splash-screen t)
-      :bind (("C-z" . nil)
-	     ("C-x C-z" . nil)
-	     ("C-h h" . nil)))
-#+end_src
-
-Don't warn for following symlinks
-#+begin_src emacs-lisp
-(setq vc-follow-symlinks t)
-#+end_src
-
-Don't warn upon adding advice for functions
-#+begin_src emacs-lisp
-(setq ad-redefinition-action 'accept)
-#+end_src
-** Line Numbers
-#+begin_src emacs-lisp
-(column-number-mode)
-
-; Enable line numbers for some modes
-(dolist (mode '(text-mode-hook
-                prog-mode-hook
-                conf-mode-hook))
-  (add-hook mode (lambda () (display-line-numbers-mode 1))))
-
-;; Override some modes which derive from the above
-(dolist (mode '(org-mode-hook))
-  (add-hook mode (lambda () (display-line-numbers-mode 0))))
-#+end_src
-
-** Fonts and Icons
-*** Fonts
-#+begin_src emacs-lisp
-  ;; Input Mono, Monaco Style, Line Height 1.3 download from http://input.fontbureau.com/
-  (defvar font-list '(("FiraCode Nerd Font" . 12) ("JetBrainsMono Nerd Font" . 12)))
-#+end_src
-
-Functions to switch fonts
-#+begin_src emacs-lisp
-  (defun change-font ()
-    "Documentation."
-    (interactive)
-    (let* (available-fonts font-name font-size font-setting)
-      (dolist (font font-list (setq available-fonts (nreverse available-fonts)))
-	(when (member (car font) (font-family-list))
-	  (push font available-fonts)))
-      (if (not available-fonts)
-	  (message "No fonts from the chosen set are available")
-	(if (called-interactively-p 'interactive)
-	    (let* ((chosen (assoc-string (completing-read "What font to use? " available-fonts nil t) available-fonts)))
-	      (setq font-name (car chosen) font-size (read-number "Font size: " (cdr chosen))))
-	  (setq font-name (caar available-fonts) font-size (cdar available-fonts)))
-	(setq font-setting (format "%s-%d" font-name font-size))
-	(set-frame-font font-setting nil t)
-	(add-to-list 'default-frame-alist (cons 'font font-setting)))))
-
-  (when (display-graphic-p)
-    (change-font))
-#+end_src
-
-*** All the icons
-#+begin_src emacs-lisp
-  (use-package all-the-icons)
-#+end_src
-** Prettify Symbols
-Make some word or string show as pretty Unicode symbols.
-#+begin_src emacs-lisp
-  (global-prettify-symbols-mode 1)
-  (defun add-pretty-lambda ()
-    (setq prettify-symbols-alist
-	  '(
-	    ("lambda" . 955)
-	    ("delta" . 120517)
-	    ("epsilon" . 120518)
-	    ("->" . 8594)
-	    ("<=" . 8804)
-	    (">=" . 8805)
-	    )))
-  (add-hook 'prog-mode-hook 'add-pretty-lambda)
-  (add-hook 'org-mode-hook 'add-pretty-lambda)
-#+end_src
-
-** Doom Theme
-#+begin_src emacs-lisp
-  (use-package doom-themes
-    :config
-#+end_src
-
-Flash mode-line on error
-#+begin_src emacs-lisp
-  (doom-themes-visual-bell-config)
-#+end_src
-
-Corrects org-mode's native fontification
-#+begin_src emacs-lisp
-  (doom-themes-org-config)
-#+end_src
-
-Set Theme
-#+begin_src emacs-lisp
-  (load-theme 'doom-dracula t)
-#+end_src
-
-Doom Theme Switcher
-#+begin_src emacs-lisp
-  (defun switch-theme ()
-    "An interactive funtion to switch themes."
-    (interactive)
-    (disable-theme (intern (car (mapcar #'symbol-name custom-enabled-themes))))
-    (call-interactively #'load-theme))
-#+end_src
-
-End =doom-themes=
-#+begin_src emacs-lisp
-  )
-#+end_src
-** Modeline
-*** Doom Modeline 
-   #+begin_src emacs-lisp
-     (use-package doom-modeline
-       :hook (after-init . doom-modeline-mode)
-       :custom
-       ;; Don't compact font caches during GC. Windows Laggy Issue
-       (inhibit-compacting-font-caches t)
-       (doom-modeline-height 15)
-       (doom-modeline-lsp t)
-       (doom-modeline-minor-modes t)
-       (doom-modeline-persp-name nil)
-       (doom-modeline-icon t)
-       (doom-modeline-major-mode-color-icon t))
-   #+end_src
-
-*** Current Time
-#+begin_src emacs-lisp
-  (display-time-mode 1)
-#+end_src
-
-*** Yes/No -> y/n
-#+begin_src emacs-lisp
-  (fset 'yes-or-no-p 'y-or-n-p)
-#+end_src
-** Page Break Lines
-#+begin_src emacs-lisp
-  (use-package page-break-lines
-    :diminish
-    :init (global-page-break-lines-mode))
-#+end_src
-** Smooth Scolling
-#+begin_src emacs-lisp
-  ;; Vertical Scroll
-  (setq scroll-step 1)
-  (setq scroll-margin 1)
-  (setq scroll-conservatively 101)
-  (setq scroll-up-aggressively 0.01)
-  (setq scroll-down-aggressively 0.01)
-  (setq auto-window-vscroll nil)
-  (setq fast-but-imprecise-scrolling nil)
-  (setq mouse-wheel-scroll-amount '(1 ((shift) . 1)))
-  (setq mouse-wheel-progressive-speed nil)
-  ;; Horizontal Scroll
-  (setq hscroll-step 1)
-  (setq hscroll-margin 1)
-#+end_src
-
-* Bindings
-** Leader General
-#+begin_src emacs-lisp
-  (use-package general
-    :config
-    (general-evil-setup t)
-
-    (general-create-definer my/leader-key-def
-			    :keymap '(normal insert visual emacs)
-			    :prefix "SPC"
-			    :global-prefix "C-SPC")
-    (general-create-definer my/ctrl-c-def
-			    :prefix "C-c"))
-#+end_src
-** Which Key
-Displays keybindings
-#+begin_src emacs-lisp
-  (use-package which-key
-    :diminish
-    :custom
-    (which-key-separator " ")
-    (which-key-prefix-prefix "+")
-    :config
-    (setq which-key-idle-delay 0)
-    (which-key-mode))
-#+end_src
-
-** ESC Cancel
-#+begin_src emacs-lisp
-(global-set-key (kbd "<escape>") 'keyboard-escape-quit)
-#+end_src
-** =universal argument= rebind
-#+begin_src emacs-lisp
-(global-set-key (kbd "C-M-u") 'universal-argument)
-#+end_src
-
-** Evil
-#+begin_src emacs-lisp
-  (use-package evil
-    :init
-    (setq evil-want-integration t)
-    (setq evil-want-keybinding  nil)
-    (setq evil-want-C-u-scroll  t)
-    (setq evil-want-C-i-jump    nil)
-    (setq evil-respect-visual-line-mode t)
-    :config
-    (evil-mode 1))
-
-  (use-package evil-collection
-    :after evil
-    :custom
-    (evil-collection-outline-bind-tab-p nil)
-    :config
-    (evil-collection-init))
-#+end_src
-
-** Hydra
-#+begin_src emacs-lisp
-(use-package hydra
-  :defer 1)
-#+end_src
-
-* Navigation
-** Ivy
-*** Ivy Config
-#+begin_src emacs-lisp
-  (use-package ivy
-    :diminish
-    :init
-    (use-package amx :defer t)
-    (use-package swiper :defer t)
-    (ivy-mode 1)
-    :bind (("C-s" . swiper)
-	   :map ivy-minibuffer-map
-	   ("TAB" . ivy-alt-done))
-    :config
-    (setq ivy-use-virtual-buffers t)
-    (setq ivy-wrap t)
-    (setq ivy-count-format"(%d/%d) ")
-    (setq enable-recursive-minibuffers t))
-
-  (use-package ivy-hydra
-    :defer t
-    :after hydra)
-#+end_src
-
-*** Counsel
-#+begin_src emacs-lisp
-  (use-package counsel
-    :bind (("M-x"      . counsel-M-x)
-	   ("C-x C-f"  . counsel-find-file)
-	   ("C-x b"    . counsel-ibuffer))
-    :config
-    (setq ivy-initial-input-alist nil)) ; Remove ^ in searches
-#+end_src
-
-*** Flx
-#+begin_src emacs-lisp
-  (use-package flx  ;; Improves sorting for fuzzy-matched results
-    :defer t
-    :init
-    (setq ivy-flx-limit 10000))
-#+end_src
-
-*** Smex
-#+begin_src emacs-lisp
-  (use-package smex ;; Adds M-x recent command sorting for counsel-M-x
-    :defer 1
-    :after counsel)
-#+end_src
-
-** Undo tree
-#+begin_src emacs-lisp
-(use-package undo-tree
-  :diminish undo-tree-mode
-  :config
-  (progn
-    (global-undo-tree-mode)
-    (setq undo-tree-visualizer-timestamps t)
-    (setq undo-tree-visualizer-diff t)))
-#+end_src
-
-* Buffer and Window Management
-** Buffer Management
-#+begin_src emacs-lisp
-#+end_src
-
-** Window Management
-*** Frame Scaling / Zooming
-#+begin_src emacs-lisp
-(use-package default-text-scale
-  :defer 1
-  :config
-  (default-text-scale-mode))
-#+end_src
-
-*** Window Selection =ace-window=
-#+begin_src emacs-lisp
-(use-package ace-window
-  :bind (("M-o" . ace-window))
-  :config
-  (setq aw-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l)))
-#+end_src
-
-*** Windows History =winner-mode=
-#+begin_src emacs-lisp
-  (winner-mode)
-  (define-key evil-window-map "u" 'winner-undo)
-  (define-key evil-window-map "r" 'winner-redo)
-#+end_src
-
-* Development
-** Languages
-*** Language Server Protocol
-**** LSP Mode
-#+begin_src emacs-lisp
-  (use-package lsp-mode
-    :defer t
-    :commands lsp
-    :bind (:map lsp-mode-map
-		("C-c C-f" . lsp-format-buffer))
-    :hook ((java-mode python-mode go-mode
-	    js-mode js2-mode typescript-mode web-mode
-	    c-mode c++-mode objc-mode) . lsp)
-    :custom
-    (lsp-auto-guess-root nil)
-    (lsp-prefer-flymake nil) ; Use flycheck instead of flymake
-    (lsp-file-watch-threshold 2000)
-    (read-process-output-max (* 1024 1024))
-    (lsp-eldoc-hook nil))
-#+end_src
-
-**** LSP UI
-#+begin_src emacs-lisp
-  (use-package lsp-ui
-    :after lsp-mode
-    :diminish
-    :hook (lsp-mode . lsp-ui-mode)
-    :custom-face
-    (lsp-ui-doc-background ((t (:background nil))))
-    (lsp-ui-doc-header ((t (:inherit (font-lock-string-face italic)))))
-    :custom
-    (lsp-ui-doc-header t)
-    (lsp-ui-doc-include-signature t)
-    (lsp-ui-doc-border (face-foreground 'default))
-    (lsp-ui-sideline-enable nil)
-    (lsp-ui-sideline-ignore-duplicate t)
-    (lsp-ui-sideline-show-code-actions nil)
-    :config
-    (setq lsp-ui-sideline-enable t)
-    (setq lsp-ui-sideline-show-hover nil)
-    (setq lsp-ui-doc-position 'bottom)
-    (lsp-ui-doc-show))
-#+end_src
-
-** Productivity
-*** Syntax Checking
-#+begin_src emacs-lisp
-  (use-package flycheck
-    :defer t
-    :diminish
-    :hook ((prog-mode markdown-mode) . flycheck-mode)
-    :custom
-    (flycheck-global-modes
-     '(not text-mode outline-mode fundamental-mode org-mode
-	   diff-mode shell-mode eshell-mode term-mode))
-    (flycheck-emacs-lisp-load-path 'inherit)
-    (flycheck-indication-mode 'right-fringe)
-    :init
-    (use-package flycheck-grammarly :defer t)
-    (if (display-graphic-p)
-	(use-package flycheck-posframe
-	  :custom-face (flycheck-posframe-border-face ((t (:inherit default))))
-	  :hook (flycheck-mode . flycheck-posframe-mode)
-	  :custom
-	  (flycheck-posframe-border-width 1)
-	  (flycheck-posframe-inhibit-functions
-	   '((lambda (&rest _) (bound-and-true-p company-backend)))))
-      (use-package flycheck-pos-tip
-	:defines flycheck-pos-tip-timeout
-	:hook (flycheck-mode . flycheck-pos-tip-mode)
-	:custom (flycheck-pos-tip-timeout 30)))
-    :config
-    (when (fboundp 'define-fringe-bitmap)
-      (define-fringe-bitmap 'flycheck-fringe-bitmap-double-arrow
-	[16 48 112 240 112 48 16] nil nil 'center)))
-#+end_src
-
-#+RESULTS:
-: #s(hash-table size 65 test eql rehash-size 1.5 rehash-threshold 0.8125 data (:use-package (24523 54223 484822 0) :init (24523 54223 484816 0) :init-secs (0 0 387 0) :use-package-secs (0 0 425 0) :config (24523 54223 484812 0) :config-secs (0 0 23 0)))
-
-*** Format All
-#+begin_src emacs-lisp
-(use-package format-all
-  :bind ("C-c C-f" . format-all-buffer))
-#+end_src
-
-*** Indention
-Highlint indention
-#+begin_src emacs-lisp
-  (use-package highlight-indent-guides
-    :diminish
-    :hook ((prog-mode) . highlight-indent-guides-mode)
-    :custom
-    (highlight-indent-guides-method 'character)
-    (highlight-indent-guides-responsive 'top)
-    (highlight-indent-guides-delay 0)
-    (highlight-indent-guides-auto-character-face-perc 7))
-#+end_src
-*** Company
-**** Company Mode
-#+begin_src emacs-lisp
-  (use-package company
-    :diminish company-mode
-    :hook ((prog-mode LaTeX-mode latex-mode ess-r-mode) . company-mode)
-    :bind
-    (:map company-active-map
-	  ([tab] . smarter-tab-to-complete)
-	  ("TAB" . smarter-tab-to-complete))
-    :custom
-    (company-minimum-prefix-length 1)
-    (company-tooltip-align-annotations t)
-    (company-require-match 'never)
-    ;; Don't use company in the following modes
-    (company-global-modes '(not shell-mode eaf-mode))
-    ;; Trigger completion immediately.
-    (company-idle-delay 0.1)
-    ;; Number the candidates (use M-1, M-2 etc to select completions).
-    (company-show-numbers t)
-    :config
-    (global-company-mode 1)
-    (defun smarter-tab-to-complete ()
-      "Try to `org-cycle', `yas-expand', and `yas-next-field' at current cursor position.
-
-  If all failed, try to complete the common part with `company-complete-common'"
-      (interactive)
-      (if yas-minor-mode
-	  (let ((old-point (point))
-		(old-tick (buffer-chars-modified-tick))
-		(func-list '(org-cycle yas-expand yas-next-field)))
-	    (catch 'func-suceed
-	      (dolist (func func-list)
-		(ignore-errors (call-interactively func))
-		(unless (and (eq old-point (point))
-			     (eq old-tick (buffer-chars-modified-tick)))
-		  (throw 'func-suceed t)))
-	      (company-complete-common))))))
-#+end_src
-
-**** Company Box
-#+begin_src emacs-lisp
-(use-package company-box
-  :diminish
-  :if (display-graphic-p)
-  :defines company-box-icons-all-the-icons
-  :hook (company-mode . company-box-mode)
-  :custom
-  (company-box-backends-colors nil)
-  :config
-  (with-no-warnings
-    ;; Prettify icons
-    (defun my-company-box-icons--elisp (candidate)
-      (when (derived-mode-p 'emacs-lisp-mode)
-        (let ((sym (intern candidate)))
-          (cond ((fboundp sym) 'Function)
-                ((featurep sym) 'Module)
-                ((facep sym) 'Color)
-                ((boundp sym) 'Variable)
-                ((symbolp sym) 'Text)
-                (t . nil)))))
-    (advice-add #'company-box-icons--elisp :override #'my-company-box-icons--elisp))
-
-  (when (and (display-graphic-p)
-             (require 'all-the-icons nil t))
-    (declare-function all-the-icons-faicon 'all-the-icons)
-    (declare-function all-the-icons-material 'all-the-icons)
-    (declare-function all-the-icons-octicon 'all-the-icons)
-    (setq company-box-icons-all-the-icons
-          `((Unknown . ,(all-the-icons-material "find_in_page" :height 0.8 :v-adjust -0.15))
-            (Text . ,(all-the-icons-faicon "text-width" :height 0.8 :v-adjust -0.02))
-            (Method . ,(all-the-icons-faicon "cube" :height 0.8 :v-adjust -0.02 :face 'all-the-icons-purple))
-            (Function . ,(all-the-icons-faicon "cube" :height 0.8 :v-adjust -0.02 :face 'all-the-icons-purple))
-            (Constructor . ,(all-the-icons-faicon "cube" :height 0.8 :v-adjust -0.02 :face 'all-the-icons-purple))
-            (Field . ,(all-the-icons-octicon "tag" :height 0.85 :v-adjust 0 :face 'all-the-icons-lblue))
-            (Variable . ,(all-the-icons-octicon "tag" :height 0.85 :v-adjust 0 :face 'all-the-icons-lblue))
-            (Class . ,(all-the-icons-material "settings_input_component" :height 0.8 :v-adjust -0.15 :face 'all-the-icons-orange))
-            (Interface . ,(all-the-icons-material "share" :height 0.8 :v-adjust -0.15 :face 'all-the-icons-lblue))
-            (Module . ,(all-the-icons-material "view_module" :height 0.8 :v-adjust -0.15 :face 'all-the-icons-lblue))
-            (Property . ,(all-the-icons-faicon "wrench" :height 0.8 :v-adjust -0.02))
-            (Unit . ,(all-the-icons-material "settings_system_daydream" :height 0.8 :v-adjust -0.15))
-            (Value . ,(all-the-icons-material "format_align_right" :height 0.8 :v-adjust -0.15 :face 'all-the-icons-lblue))
-            (Enum . ,(all-the-icons-material "storage" :height 0.8 :v-adjust -0.15 :face 'all-the-icons-orange))
-            (Keyword . ,(all-the-icons-material "filter_center_focus" :height 0.8 :v-adjust -0.15))
-            (Snippet . ,(all-the-icons-material "format_align_center" :height 0.8 :v-adjust -0.15))
-            (Color . ,(all-the-icons-material "palette" :height 0.8 :v-adjust -0.15))
-            (File . ,(all-the-icons-faicon "file-o" :height 0.8 :v-adjust -0.02))
-            (Reference . ,(all-the-icons-material "collections_bookmark" :height 0.8 :v-adjust -0.15))
-            (Folder . ,(all-the-icons-faicon "folder-open" :height 0.8 :v-adjust -0.02))
-            (EnumMember . ,(all-the-icons-material "format_align_right" :height 0.8 :v-adjust -0.15))
-            (Constant . ,(all-the-icons-faicon "square-o" :height 0.8 :v-adjust -0.1))
-            (Struct . ,(all-the-icons-material "settings_input_component" :height 0.8 :v-adjust -0.15 :face 'all-the-icons-orange))
-            (Event . ,(all-the-icons-octicon "zap" :height 0.8 :v-adjust 0 :face 'all-the-icons-orange))
-            (Operator . ,(all-the-icons-material "control_point" :height 0.8 :v-adjust -0.15))
-            (TypeParameter . ,(all-the-icons-faicon "arrows" :height 0.8 :v-adjust -0.02))
-            (Template . ,(all-the-icons-material "format_align_left" :height 0.8 :v-adjust -0.15)))
-          company-box-icons-alist 'company-box-icons-all-the-icons)))
-#+end_src
-
-#+RESULTS:
-: #s(hash-table size 65 test eql rehash-size 1.5 rehash-threshold 0.8125 data (:use-package (24523 54119 824986 0) :init (24523 54119 824980 0) :init-secs (0 0 195 0) :use-package-secs (0 0 240 0) :config (24523 54119 824972 0) :config-secs (0 0 181 0)))
-
-*** Paren
-**** Smart Paren
-#+begin_src emacs-lisp
-  (use-package smartparens
-    :hook (prog-mode . smartparens-mode)
-    :diminish smartparens-mode
-    :config
-    ;; Stop pairing single quotes in elisp
-    (sp-local-pair 'emacs-lisp-mode "'" nil :actions nil)
-    (sp-local-pair 'org-mode "[" nil :actions nil))
-#+end_src
-
-**** Rainbow
-#+begin_src emacs-lisp
-(use-package rainbow-delimiters
-  :hook (prog-mode . rainbow-delimiters-mode))
-#+end_src
-
-* Org
-** Org Load Path
-#+begin_src emacs-lisp
-  (use-package org
-    :load-path ("~/vendor/org-mode/lisp" "~/vendor/org-mode/contrib/lisp"))
-#+end_src
-
-** Org Config
-*** Org Basic Setup
-#+begin_src emacs-lisp
-  (use-package org
-    :init
-    (setq org-imenu-depth 7))
-#+end_src
-**** Org Directories
-#+begin_src emacs-lisp
-  (setq org-directory "~/Dropbox/org/")
-#+end_src
-
-*** Org Source Code Blocks
-#+begin_src emacs-lisp
-  (use-package org
-    :config
-    (setq org-src-window-setup 'current-window)
-    (setq org-edit-src-persistent-message nil)
-    (setq org-src-fontify-natively t)
-    (setq org-src-preserve-indentation t)
-    (setq org-src-tab-acts-natively t)
-    (setq org-edit-src-content-indentation 0)
-    (setq org-hide-block-startup t))
-#+end_src
-
-**** Org Structure Template
-#+begin_src emacs-lisp
-  (use-package org
-    :config
-    (setq org-structure-template-alist
-	'(("e" . "src emacs-lisp"))))
-#+end_src
-
-*** Tangle On Save
-#+begin_src emacs-lisp
-(defun my/org-babel-tangle-save ()
-  (let ((org-confirm-babel-evaluate nil))
-    (org-babel-tangle)))
-
-(add-hook 'org-mode-hook (lambda () (add-hook 'after-save-hook #'my/org-babel-tangle-save
-                                         'run-at-end 'only-in-org-mode)))
-#+end_src
-
-** TOC Org
-#+begin_src emacs-lisp
-(use-package toc-org
-  :hook (org-mode . toc-org-mode))
-#+end_src
+#+TITLE: Emacs Config#+PROPERTY: header-args emacs-lisp :tangle "~/dotfiles/editor/emacs/init.el"* Table of Contents                                                     :TOC_3:- [[#startup][Startup]]  - [[#lexical-binding][Lexical Binding]]  - [[#garbage-collection][Garbage Collection]]  - [[#load-path][Load Path]]  - [[#define-constants][Define Constants]]  - [[#utf-8-coding-system][UTF-8 Coding System]]- [[#package-management][Package Management]]  - [[#package-archives][Package Archives]]  - [[#configure-package-manager][Configure Package Manager]]  - [[#use-package][Use Package]]  - [[#auto-update-packages][Auto update packages]]  - [[#diminish][Diminish]]- [[#personal-information][Personal Information]]- [[#user-interface][User Interface]]  - [[#disable-redundant-ui-component][Disable redundant UI component]]  - [[#line-numbers][Line Numbers]]  - [[#fonts-and-icons][Fonts and Icons]]    - [[#fonts][Fonts]]    - [[#all-the-icons][All the icons]]  - [[#prettify-symbols][Prettify Symbols]]  - [[#doom-theme][Doom Theme]]  - [[#modeline][Modeline]]    - [[#doom-modeline][Doom Modeline]]    - [[#current-time][Current Time]]    - [[#yesno---yn][Yes/No -> y/n]]  - [[#page-break-lines][Page Break Lines]]  - [[#smooth-scolling][Smooth Scolling]]- [[#bindings][Bindings]]  - [[#leader-general][Leader General]]  - [[#which-key][Which Key]]  - [[#esc-cancel][ESC Cancel]]  - [[#universal-argument-rebind][=universal argument= rebind]]  - [[#evil][Evil]]  - [[#hydra][Hydra]]- [[#navigation][Navigation]]  - [[#ivy][Ivy]]    - [[#ivy-config][Ivy Config]]    - [[#counsel][Counsel]]    - [[#flx][Flx]]    - [[#smex][Smex]]  - [[#undo-tree][Undo tree]]- [[#buffer-and-window-management][Buffer and Window Management]]  - [[#buffer-management][Buffer Management]]  - [[#window-management][Window Management]]    - [[#frame-scaling--zooming][Frame Scaling / Zooming]]    - [[#window-selection-ace-window][Window Selection =ace-window=]]    - [[#windows-history-winner-mode][Windows History =winner-mode=]]- [[#development][Development]]  - [[#languages][Languages]]    - [[#language-server-protocol][Language Server Protocol]]  - [[#productivity][Productivity]]    - [[#syntax-checking][Syntax Checking]]    - [[#format-all][Format All]]    - [[#indention][Indention]]    - [[#company][Company]]    - [[#paren][Paren]]- [[#org][Org]]  - [[#org-load-path][Org Load Path]]  - [[#org-config][Org Config]]    - [[#org-basic-setup][Org Basic Setup]]    - [[#org-fonts-and-symbols][Org Fonts and Symbols]]    - [[#org-source-code-blocks][Org Source Code Blocks]]    - [[#tangle-on-save][Tangle On Save]]  - [[#writeroom][Writeroom]]  - [[#toc-org][TOC Org]]* Startup** Lexical Binding#+begin_src emacs-lisp  ;;; init.el --- -*- lexical-binding: t -*-#+end_src** Garbage CollectionA large =gc-cons-threshold= may cause freezing and stuttering during long-term interactive use.If freezing, decrease this amount. If stuttering, increase this amount.#+begin_src emacs-lisp  (defvar better-gc-cons-threshold 67108864)  (add-hook 'emacs-startup-hook	    (lambda ()	      (setq gc-cons-threshold better-gc-cons-threshold)	      (setq file-name-handler-alist file-name-handler-alist-original)	      (makunbound 'file-name-handler-alist-original)))#+end_srcGarbage Collect when Emacs is out of focus and avoid garbage collection when using minibuffer.#+begin_src emacs-lisp  (add-hook 'emacs-startup-hook            (lambda ()              (if (boundp 'after-focus-change-function)                  (add-function :after after-focus-change-function                                (lambda ()                                  (unless (frame-focus-state)                                    (garbage-collect))))                (add-hook 'after-focus-change-function 'garbage-collect))              (defun gc-minibuffer-setup-hook ()                (setq gc-cons-threshold (* better-gc-cons-threshold 2)))              (defun gc-minibuffer-exit-hook ()                (garbage-collect)                (setq gc-cons-threshold better-gc-cons-threshold))              (add-hook 'minibuffer-setup-hook #'gc-minibuffer-setup-hook)              (add-hook 'minibuffer-exit-hook #'gc-minibuffer-exit-hook)))#+end_src** Load Path#+begin_src emacs-lisp(defun update-to-load-path (folder)  "Update FOLDER and its subdirectories to `load-path'."  (let ((base folder))    (unless (member base load-path)      (add-to-list 'load-path base))    (dolist (f (directory-files base))      (let ((name (concat base "/" f)))        (when (and (file-directory-p name)                   (not (equal f ".."))                   (not (equal f ".")))          (unless (member base load-path)            (add-to-list 'load-path name)))))))(update-to-load-path (expand-file-name "elisp" user-emacs-directory))#+end_src** Define Constants#+begin_src emacs-lisp  (defconst *sys/win32*    (eq system-type 'windows-nt)    "Are we running on a WinTel system?")  (defconst *sys/linux*    (eq system-type 'gnu/linux)    "Are we running on a GNU/Linux system?")  (defconst python-p    (or (executable-find "python3")        (and (executable-find "python")             (> (length (shell-command-to-string "python --version | grep 'Python 3'")) 0)))    "Do we have python3?")  (defconst pip-p    (or (executable-find "pip3")        (and (executable-find "pip")             (> (length (shell-command-to-string "pip --version | grep 'python 3'")) 0)))    "Do we have pip3?")  (defconst eaf-env-p    (and *sys/linux* (display-graphic-p) python-p pip-p         (not (equal (shell-command-to-string "pip freeze | grep '^PyQt\\|PyQtWebEngine'") "")))    "Do we have EAF environment setup?")#+end_src** UTF-8 Coding System#+begin_src emacs-lisp(prefer-coding-system 'utf-8)(when (display-graphic-p)  (setq x-select-request-type '(UTF8_STRING COMPOUND_TEXT TEXT STRING)))#+end_src* Package Management** Package Archives#+begin_src emacs-lisp  (setq package-user-dir (expand-file-name "elpa" user-emacs-directory)        package-archives        '(("gnu"   . "https://elpa.gnu.org/packages/")          ("melpa" . "https://melpa.org/packages/")))#+end_src** Configure Package Manager#+begin_src emacs-lisp  (unless (bound-and-true-p package--initialized)    (setq package-enable-at-startup nil)          ; To prevent initializing twice    (package-initialize))  ;; set use-package-verbose to t for interpreted .emacs,  ;; and to nil for byte-compiled .emacs.elc.  (eval-and-compile    (setq use-package-verbose (not (bound-and-true-p byte-compile-current-file))))#+end_src** Use Package#+begin_src emacs-lisp  ;; Install use-package if not installed  (unless (package-installed-p 'use-package)    (package-refresh-contents)    (package-install 'use-package))  (eval-and-compile    (setq use-package-always-ensure t)    (setq use-package-expand-minimally t)    (setq use-package-compute-statistics t)    (setq use-package-enable-imenu-support t))  (eval-when-compile    (require 'use-package)    (require 'bind-key))#+end_src** Auto update packages#+begin_src emacs-lisp  (use-package auto-package-update    :if (not (daemonp))    :custom    (auto-package-update-interval 7) ;; in days    (auto-package-update-prompt-before-update t)    (auto-package-update-delete-old-versions t)    (auto-package-update-hide-results t)    :config    (auto-package-update-maybe))#+end_src** Diminish#+begin_src emacs-lisp  (use-package diminish)#+end_src* Personal Information#+begin_src emacs-lisp  (setq user-full-name "Vedant Sansare")  (setq user-mail-address "vedantsansare23@gmail.com")#+end_src* User Interface** Disable redundant UI component#+begin_src emacs-lisp    (use-package emacs      :init      (menu-bar-mode -1)      (tool-bar-mode -1)      (scroll-bar-mode -1)      :config      (setq use-file-dialog nil)      (setq use-dialog-box t)               ; only for mouse events      (setq inhibit-splash-screen t)      :bind (("C-z" . nil)	     ("C-x C-z" . nil)	     ("C-h h" . nil)))#+end_srcDon't warn for following symlinks#+begin_src emacs-lisp(setq vc-follow-symlinks t)#+end_srcDon't warn upon adding advice for functions#+begin_src emacs-lisp(setq ad-redefinition-action 'accept)#+end_src** Line Numbers#+begin_src emacs-lisp(column-number-mode); Enable line numbers for some modes(dolist (mode '(text-mode-hook                prog-mode-hook                conf-mode-hook))  (add-hook mode (lambda () (display-line-numbers-mode 1))));; Override some modes which derive from the above(dolist (mode '(org-mode-hook))  (add-hook mode (lambda () (display-line-numbers-mode 0))))#+end_src** Fonts and Icons*** Fonts**** Font Face#+begin_src emacs-lisp;; Set the font face based on platform (set-face-attribute 'default nil :font "FiraCode Nerd Font"  :height 110);; Set the fixed pitch face(set-face-attribute 'fixed-pitch nil :font "FiraCode Nerd Font" :height 110);; Set the variable pitch face(set-face-attribute 'variable-pitch nil :font "JetBrainsMono Nerd Font" :height 120)#+end_src**** Unicode Support#+begin_src emacs-lisp(defun my/replace-unicode-font-mapping (block-name old-font new-font)  (let* ((block-idx (cl-position-if                         (lambda (i) (string-equal (car i) block-name))                         unicode-fonts-block-font-mapping))         (block-fonts (cadr (nth block-idx unicode-fonts-block-font-mapping)))         (updated-block (cl-substitute new-font old-font block-fonts :test 'string-equal)))    (setf (cdr (nth block-idx unicode-fonts-block-font-mapping))          `(,updated-block))))(use-package unicode-fonts  :ensure t  :custom  (unicode-fonts-skip-font-groups '(low-quality-glyphs))  :config  ;; Fix the font mappings to use the right emoji font  (mapcar    (lambda (block-name)      (my/replace-unicode-font-mapping block-name "Apple Color Emoji" "Noto Color Emoji"))    '("Dingbats"      "Emoticons"      "Miscellaneous Symbols and Pictographs"      "Transport and Map Symbols"))  (unicode-fonts-setup))#+end_src*** All the icons#+begin_src emacs-lisp  (use-package all-the-icons)#+end_src** Prettify SymbolsMake some word or string show as pretty Unicode symbols.#+begin_src emacs-lisp  (global-prettify-symbols-mode 1)  (defun add-pretty-lambda ()    (setq prettify-symbols-alist	  '(	    ("lambda" . 955)	    ("delta" . 120517)	    ("epsilon" . 120518)	    ("->" . 8594)	    ("<=" . 8804)	    (">=" . 8805)	    )))  (add-hook 'prog-mode-hook 'add-pretty-lambda)  (add-hook 'org-mode-hook 'add-pretty-lambda)#+end_src** Doom Theme#+begin_src emacs-lisp  (use-package doom-themes    :config#+end_srcFlash mode-line on error#+begin_src emacs-lisp  (doom-themes-visual-bell-config)#+end_srcCorrects org-mode's native fontification#+begin_src emacs-lisp  (doom-themes-org-config)#+end_srcSet Theme#+begin_src emacs-lisp  (load-theme 'doom-dracula t)#+end_srcDoom Theme Switcher#+begin_src emacs-lisp  (defun switch-theme ()    "An interactive funtion to switch themes."    (interactive)    (disable-theme (intern (car (mapcar #'symbol-name custom-enabled-themes))))    (call-interactively #'load-theme))#+end_srcEnd =doom-themes=#+begin_src emacs-lisp  )#+end_src** Modeline*** Doom Modeline    #+begin_src emacs-lisp     (use-package doom-modeline       :hook (after-init . doom-modeline-mode)       :custom       ;; Don't compact font caches during GC. Windows Laggy Issue       (inhibit-compacting-font-caches t)       (doom-modeline-height 15)       (doom-modeline-lsp t)       (doom-modeline-minor-modes t)       (doom-modeline-persp-name nil)       (doom-modeline-icon t)       (doom-modeline-major-mode-color-icon t))   #+end_src*** Current Time#+begin_src emacs-lisp  (display-time-mode 1)#+end_src*** Yes/No -> y/n#+begin_src emacs-lisp  (fset 'yes-or-no-p 'y-or-n-p)#+end_src** Page Break Lines#+begin_src emacs-lisp  (use-package page-break-lines    :diminish    :init (global-page-break-lines-mode))#+end_src** Smooth Scolling#+begin_src emacs-lisp  ;; Vertical Scroll  (setq scroll-step 1)  (setq scroll-margin 1)  (setq scroll-conservatively 101)  (setq scroll-up-aggressively 0.01)  (setq scroll-down-aggressively 0.01)  (setq auto-window-vscroll nil)  (setq fast-but-imprecise-scrolling nil)  (setq mouse-wheel-scroll-amount '(1 ((shift) . 1)))  (setq mouse-wheel-progressive-speed nil)  ;; Horizontal Scroll  (setq hscroll-step 1)  (setq hscroll-margin 1)#+end_src* Bindings** Leader General#+begin_src emacs-lisp  (use-package general    :config    (general-evil-setup t)    (general-create-definer my/leader-key-def			    :keymap '(normal insert visual emacs)			    :prefix "SPC"			    :global-prefix "C-SPC")    (general-create-definer my/ctrl-c-def			    :prefix "C-c"))#+end_src** Which KeyDisplays keybindings#+begin_src emacs-lisp  (use-package which-key    :diminish    :custom    (which-key-separator " ")    (which-key-prefix-prefix "+")    :config    (setq which-key-idle-delay 0)    (which-key-mode))#+end_src** ESC Cancel#+begin_src emacs-lisp(global-set-key (kbd "<escape>") 'keyboard-escape-quit)#+end_src** =universal argument= rebind#+begin_src emacs-lisp(global-set-key (kbd "C-M-u") 'universal-argument)#+end_src** Evil#+begin_src emacs-lisp  (use-package evil    :init    (setq evil-want-integration t)    (setq evil-want-keybinding  nil)    (setq evil-want-C-u-scroll  t)    (setq evil-want-C-i-jump    nil)    (setq evil-respect-visual-line-mode t)    :config    (evil-mode 1))  (use-package evil-collection    :after evil    :custom    (evil-collection-outline-bind-tab-p nil)    :config    (evil-collection-init))#+end_src** Hydra#+begin_src emacs-lisp(use-package hydra  :defer 1)#+end_src* Navigation** Ivy*** Ivy Config#+begin_src emacs-lisp  (use-package ivy    :diminish    :init    (use-package amx :defer t)    (use-package swiper :defer t)    (ivy-mode 1)    :bind (("C-s" . swiper)	   :map ivy-minibuffer-map	   ("TAB" . ivy-alt-done))    :config    (setq ivy-use-virtual-buffers t)    (setq ivy-wrap t)    (setq ivy-count-format"(%d/%d) ")    (setq enable-recursive-minibuffers t))  (use-package ivy-hydra    :defer t    :after hydra)#+end_src*** Counsel#+begin_src emacs-lisp  (use-package counsel    :bind (("M-x"      . counsel-M-x)	   ("C-x C-f"  . counsel-find-file)	   ("C-x b"    . counsel-ibuffer))    :config    (setq ivy-initial-input-alist nil)) ; Remove ^ in searches#+end_src*** Flx#+begin_src emacs-lisp  (use-package flx  ;; Improves sorting for fuzzy-matched results    :defer t    :init    (setq ivy-flx-limit 10000))#+end_src*** Smex#+begin_src emacs-lisp  (use-package smex ;; Adds M-x recent command sorting for counsel-M-x    :defer 1    :after counsel)#+end_src** Undo tree#+begin_src emacs-lisp(use-package undo-tree  :diminish undo-tree-mode  :config  (progn    (global-undo-tree-mode)    (setq undo-tree-visualizer-timestamps t)    (setq undo-tree-visualizer-diff t)))#+end_src* Buffer and Window Management** Buffer Management#+begin_src emacs-lisp#+end_src** Window Management*** Frame Scaling / Zooming#+begin_src emacs-lisp(use-package default-text-scale  :defer 1  :config  (default-text-scale-mode))#+end_src*** Window Selection =ace-window=#+begin_src emacs-lisp(use-package ace-window  :bind (("M-o" . ace-window))  :config  (setq aw-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l)))#+end_src*** Windows History =winner-mode=#+begin_src emacs-lisp  (winner-mode)  (define-key evil-window-map "u" 'winner-undo)  (define-key evil-window-map "r" 'winner-redo)#+end_src* Development** Languages*** Language Server Protocol**** LSP Mode#+begin_src emacs-lisp  (use-package lsp-mode    :defer t    :commands lsp    :bind (:map lsp-mode-map		("C-c C-f" . lsp-format-buffer))    :hook ((java-mode python-mode go-mode	    js-mode js2-mode typescript-mode web-mode	    c-mode c++-mode objc-mode) . lsp)    :custom    (lsp-auto-guess-root nil)    (lsp-prefer-flymake nil) ; Use flycheck instead of flymake    (lsp-file-watch-threshold 2000)    (read-process-output-max (* 1024 1024))    (lsp-eldoc-hook nil))#+end_src**** LSP UI#+begin_src emacs-lisp  (use-package lsp-ui    :after lsp-mode    :diminish    :hook (lsp-mode . lsp-ui-mode)    :custom-face    (lsp-ui-doc-background ((t (:background nil))))    (lsp-ui-doc-header ((t (:inherit (font-lock-string-face italic)))))    :custom    (lsp-ui-doc-header t)    (lsp-ui-doc-include-signature t)    (lsp-ui-doc-border (face-foreground 'default))    (lsp-ui-sideline-enable nil)    (lsp-ui-sideline-ignore-duplicate t)    (lsp-ui-sideline-show-code-actions nil)    :config    (setq lsp-ui-sideline-enable t)    (setq lsp-ui-sideline-show-hover nil)    (setq lsp-ui-doc-position 'bottom)    (lsp-ui-doc-show))#+end_src** Productivity*** Syntax Checking#+begin_src emacs-lisp  (use-package flycheck    :defer t    :diminish    :hook ((prog-mode markdown-mode) . flycheck-mode)    :custom    (flycheck-global-modes     '(not text-mode outline-mode fundamental-mode org-mode	   diff-mode shell-mode eshell-mode term-mode))    (flycheck-emacs-lisp-load-path 'inherit)    (flycheck-indication-mode 'right-fringe)    :init    (use-package flycheck-grammarly :defer t)    (if (display-graphic-p)	(use-package flycheck-posframe	  :custom-face (flycheck-posframe-border-face ((t (:inherit default))))	  :hook (flycheck-mode . flycheck-posframe-mode)	  :custom	  (flycheck-posframe-border-width 1)	  (flycheck-posframe-inhibit-functions	   '((lambda (&rest _) (bound-and-true-p company-backend)))))      (use-package flycheck-pos-tip	:defines flycheck-pos-tip-timeout	:hook (flycheck-mode . flycheck-pos-tip-mode)	:custom (flycheck-pos-tip-timeout 30)))    :config    (when (fboundp 'define-fringe-bitmap)      (define-fringe-bitmap 'flycheck-fringe-bitmap-double-arrow	[16 48 112 240 112 48 16] nil nil 'center)))#+end_src#+RESULTS:: #s(hash-table size 65 test eql rehash-size 1.5 rehash-threshold 0.8125 data (:use-package (24523 54223 484822 0) :init (24523 54223 484816 0) :init-secs (0 0 387 0) :use-package-secs (0 0 425 0) :config (24523 54223 484812 0) :config-secs (0 0 23 0)))*** Format All#+begin_src emacs-lisp(use-package format-all  :bind ("C-c C-f" . format-all-buffer))#+end_src*** IndentionHighlint indention#+begin_src emacs-lisp  (use-package highlight-indent-guides    :diminish    :hook ((prog-mode) . highlight-indent-guides-mode)    :custom    (highlight-indent-guides-method 'character)    (highlight-indent-guides-responsive 'top)    (highlight-indent-guides-delay 0)    (highlight-indent-guides-auto-character-face-perc 7))#+end_src*** Company**** Company Mode#+begin_src emacs-lisp  (use-package company    :diminish company-mode    :hook ((prog-mode LaTeX-mode latex-mode ess-r-mode) . company-mode)    :bind    (:map company-active-map	  ([tab] . smarter-tab-to-complete)	  ("TAB" . smarter-tab-to-complete))    :custom    (company-minimum-prefix-length 1)    (company-tooltip-align-annotations t)    (company-require-match 'never)    ;; Don't use company in the following modes    (company-global-modes '(not shell-mode eaf-mode))    ;; Trigger completion immediately.    (company-idle-delay 0.1)    ;; Number the candidates (use M-1, M-2 etc to select completions).    (company-show-numbers t)    :config    (global-company-mode 1)    (defun smarter-tab-to-complete ()      "Try to `org-cycle', `yas-expand', and `yas-next-field' at current cursor position.  If all failed, try to complete the common part with `company-complete-common'"      (interactive)      (if yas-minor-mode	  (let ((old-point (point))		(old-tick (buffer-chars-modified-tick))		(func-list '(org-cycle yas-expand yas-next-field)))	    (catch 'func-suceed	      (dolist (func func-list)		(ignore-errors (call-interactively func))		(unless (and (eq old-point (point))			     (eq old-tick (buffer-chars-modified-tick)))		  (throw 'func-suceed t)))	      (company-complete-common))))))#+end_src**** Company Box#+begin_src emacs-lisp(use-package company-box  :diminish  :if (display-graphic-p)  :defines company-box-icons-all-the-icons  :hook (company-mode . company-box-mode)  :custom  (company-box-backends-colors nil)  :config  (with-no-warnings    ;; Prettify icons    (defun my-company-box-icons--elisp (candidate)      (when (derived-mode-p 'emacs-lisp-mode)        (let ((sym (intern candidate)))          (cond ((fboundp sym) 'Function)                ((featurep sym) 'Module)                ((facep sym) 'Color)                ((boundp sym) 'Variable)                ((symbolp sym) 'Text)                (t . nil)))))    (advice-add #'company-box-icons--elisp :override #'my-company-box-icons--elisp))  (when (and (display-graphic-p)             (require 'all-the-icons nil t))    (declare-function all-the-icons-faicon 'all-the-icons)    (declare-function all-the-icons-material 'all-the-icons)    (declare-function all-the-icons-octicon 'all-the-icons)    (setq company-box-icons-all-the-icons          `((Unknown . ,(all-the-icons-material "find_in_page" :height 0.8 :v-adjust -0.15))            (Text . ,(all-the-icons-faicon "text-width" :height 0.8 :v-adjust -0.02))            (Method . ,(all-the-icons-faicon "cube" :height 0.8 :v-adjust -0.02 :face 'all-the-icons-purple))            (Function . ,(all-the-icons-faicon "cube" :height 0.8 :v-adjust -0.02 :face 'all-the-icons-purple))            (Constructor . ,(all-the-icons-faicon "cube" :height 0.8 :v-adjust -0.02 :face 'all-the-icons-purple))            (Field . ,(all-the-icons-octicon "tag" :height 0.85 :v-adjust 0 :face 'all-the-icons-lblue))            (Variable . ,(all-the-icons-octicon "tag" :height 0.85 :v-adjust 0 :face 'all-the-icons-lblue))            (Class . ,(all-the-icons-material "settings_input_component" :height 0.8 :v-adjust -0.15 :face 'all-the-icons-orange))            (Interface . ,(all-the-icons-material "share" :height 0.8 :v-adjust -0.15 :face 'all-the-icons-lblue))            (Module . ,(all-the-icons-material "view_module" :height 0.8 :v-adjust -0.15 :face 'all-the-icons-lblue))            (Property . ,(all-the-icons-faicon "wrench" :height 0.8 :v-adjust -0.02))            (Unit . ,(all-the-icons-material "settings_system_daydream" :height 0.8 :v-adjust -0.15))            (Value . ,(all-the-icons-material "format_align_right" :height 0.8 :v-adjust -0.15 :face 'all-the-icons-lblue))            (Enum . ,(all-the-icons-material "storage" :height 0.8 :v-adjust -0.15 :face 'all-the-icons-orange))            (Keyword . ,(all-the-icons-material "filter_center_focus" :height 0.8 :v-adjust -0.15))            (Snippet . ,(all-the-icons-material "format_align_center" :height 0.8 :v-adjust -0.15))            (Color . ,(all-the-icons-material "palette" :height 0.8 :v-adjust -0.15))            (File . ,(all-the-icons-faicon "file-o" :height 0.8 :v-adjust -0.02))            (Reference . ,(all-the-icons-material "collections_bookmark" :height 0.8 :v-adjust -0.15))            (Folder . ,(all-the-icons-faicon "folder-open" :height 0.8 :v-adjust -0.02))            (EnumMember . ,(all-the-icons-material "format_align_right" :height 0.8 :v-adjust -0.15))            (Constant . ,(all-the-icons-faicon "square-o" :height 0.8 :v-adjust -0.1))            (Struct . ,(all-the-icons-material "settings_input_component" :height 0.8 :v-adjust -0.15 :face 'all-the-icons-orange))            (Event . ,(all-the-icons-octicon "zap" :height 0.8 :v-adjust 0 :face 'all-the-icons-orange))            (Operator . ,(all-the-icons-material "control_point" :height 0.8 :v-adjust -0.15))            (TypeParameter . ,(all-the-icons-faicon "arrows" :height 0.8 :v-adjust -0.02))            (Template . ,(all-the-icons-material "format_align_left" :height 0.8 :v-adjust -0.15)))          company-box-icons-alist 'company-box-icons-all-the-icons)))#+end_src#+RESULTS:: #s(hash-table size 65 test eql rehash-size 1.5 rehash-threshold 0.8125 data (:use-package (24523 54119 824986 0) :init (24523 54119 824980 0) :init-secs (0 0 195 0) :use-package-secs (0 0 240 0) :config (24523 54119 824972 0) :config-secs (0 0 181 0)))*** Paren**** Smart Paren#+begin_src emacs-lisp  (use-package smartparens    :hook (prog-mode . smartparens-mode)    :diminish smartparens-mode    :config    ;; Stop pairing single quotes in elisp    (sp-local-pair 'emacs-lisp-mode "'" nil :actions nil)    (sp-local-pair 'org-mode "[" nil :actions nil))#+end_src**** Rainbow#+begin_src emacs-lisp(use-package rainbow-delimiters  :hook (prog-mode . rainbow-delimiters-mode))#+end_src* Org** Org Load Path#+begin_src emacs-lisp  (use-package org    :load-path ("~/vendor/org-mode/lisp" "~/vendor/org-mode/contrib/lisp"))#+end_src** Org Config*** Org Basic Setup#+begin_src emacs-lisp(defun my/org-mode-setup ()  (org-indent-mode)  (variable-pitch-mode 1)  (auto-fill-mode 0)  (visual-line-mode 1)  (setq evil-auto-indent nil)  (diminish org-indent-mode))(use-package org  :defer t  :diminish t  :hook (org-mode . my/org-mode-setup)  :config  (setq org-directory "~/Dropbox/org")  (setq org-ellipsis "  "))#+end_src*** Org Fonts and Symbols#+begin_src emacs-lisp(use-package org-superstar  :after org  :hook (org-mode . org-superstar-mode)  :config  (setq org-pretty-entities t)  (setq org-hide-emphasis-markers t)  (setq org-agenda-block-separator "")  (setq org-fontify-whole-heading-line t)  (setq org-fontify-done-headline t)  (setq org-fontify-quote-and-verse-blocks t)  :custom  (org-superstar-remove-leading-stars t)  (org-superstar-headline-bullets-list '("◉" "○" "●" "○" "●" "○" "●")))#+end_src*** Org Source Code Blocks#+begin_src emacs-lisp  (use-package org    :config    (setq org-src-window-setup 'current-window)    (setq org-edit-src-persistent-message nil)    (setq org-src-fontify-natively t)    (setq org-src-preserve-indentation t)    (setq org-src-tab-acts-natively t)    (setq org-edit-src-content-indentation 0)    (setq org-hide-block-startup t))#+end_src**** Org Structure Template#+begin_src emacs-lisp  (use-package org    :config    (setq org-structure-template-alist	'(("e" . "src emacs-lisp"))))#+end_src*** Tangle On Save#+begin_src emacs-lisp(defun my/org-babel-tangle-save ()  (let ((org-confirm-babel-evaluate nil))    (org-babel-tangle)))(add-hook 'org-mode-hook (lambda () (add-hook 'after-save-hook #'my/org-babel-tangle-save                                         'run-at-end 'only-in-org-mode)))#+end_src** Writeroom#+begin_src emacs-lisp(use-package writeroom-mode)#+end_src** TOC Org#+begin_src emacs-lisp(use-package toc-org  :hook (org-mode . toc-org-mode))#+end_src
