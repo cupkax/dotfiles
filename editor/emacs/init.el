@@ -579,7 +579,7 @@
 (add-hook 'org-mode-hook (lambda () (add-hook 'after-save-hook #'my/org-babel-tangle-save
                                          'run-at-end 'only-in-org-mode)))
 
-(use-package writeroom-mode)
+(use-package olivetti)
 
 (use-package toc-org
   :hook (org-mode . toc-org-mode))
