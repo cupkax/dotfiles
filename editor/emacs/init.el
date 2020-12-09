@@ -242,16 +242,17 @@
   (setq hscroll-step 1)
   (setq hscroll-margin 1)
 
-  (use-package general
-    :config
-    (general-evil-setup t)
+(use-package general
+  :config
+  (general-evil-setup t)
 
-    (general-create-definer my/leader-key-def
-			    :keymap '(normal insert visual emacs)
-			    :prefix "SPC"
-			    :global-prefix "C-SPC")
-    (general-create-definer my/ctrl-c-def
-			    :prefix "C-c"))
+  (general-create-definer my/leader-key-def
+    :keymaps '(normal insert visual emacs)
+    :prefix "SPC"
+    :global-prefix "C-SPC")
+
+  (general-create-definer my/ctrl-c-keys
+    :prefix "C-c"))
 
   (use-package which-key
     :diminish
@@ -266,60 +267,121 @@
 
 (global-set-key (kbd "C-M-u") 'universal-argument)
 
-  (use-package evil
-    :init
-    (setq evil-want-integration t)
-    (setq evil-want-keybinding  nil)
-    (setq evil-want-C-u-scroll  t)
-    (setq evil-want-C-i-jump    nil)
-    (setq evil-respect-visual-line-mode t)
-    :config
-    (evil-mode 1))
+(defun my/evil-hook ()
+  (dolist (mode '(custom-mode
+                  git-rebase-mode
+                  sauron-mode))
+    (add-to-list 'evil-emacs-state-modes mode)))
 
-  (use-package evil-collection
-    :after evil
-    :custom
-    (evil-collection-outline-bind-tab-p nil)
-    :config
-    (evil-collection-init))
+(use-package evil
+  :init
+  (setq evil-want-integration t)
+  (setq evil-want-keybinding nil)
+  (setq evil-want-C-u-scroll t)
+  (setq evil-want-C-i-jump nil)
+  (setq evil-respect-visual-line-mode t)
+  :config
+  (add-hook 'evil-mode-hook 'my/evil-hook)
+  (evil-mode 1)
+  (define-key evil-insert-state-map (kbd "C-g") 'evil-normal-state)
+  (define-key evil-insert-state-map (kbd "C-h") 'evil-delete-backward-char-and-join)
+
+  ;; Use visual line motions even outside of visual-line-mode buffers
+  (evil-global-set-key 'motion "j" 'evil-next-visual-line)
+  (evil-global-set-key 'motion "k" 'evil-previous-visual-line)
+
+  (evil-set-initial-state 'messages-buffer-mode 'normal)
+  (evil-set-initial-state 'dashboard-mode 'normal))
+
+(use-package evil-collection
+  :after evil
+  :custom
+  (evil-collection-outline-bind-tab-p nil)
+  :config
+  (evil-collection-init))
+
+(use-package use-package-chords
+  :disabled
+  :config (key-chord-mode 1))
 
 (use-package hydra
   :defer 1)
 
-  (use-package ivy
-    :diminish
-    :init
-    (use-package amx :defer t)
-    (use-package swiper :defer t)
-    (ivy-mode 1)
-    :bind (("C-s" . swiper)
-	   :map ivy-minibuffer-map
-	   ("TAB" . ivy-alt-done))
-    :config
-    (setq ivy-use-virtual-buffers t)
-    (setq ivy-wrap t)
-    (setq ivy-count-format"(%d/%d) ")
-    (setq enable-recursive-minibuffers t))
+(use-package ivy
+  :diminish
+  :bind (("C-s" . swiper)
+         :map ivy-minibuffer-map
+         ("TAB" . ivy-alt-done)
+         ("C-j" . ivy-next-line)
+         ("C-k" . ivy-previous-line)
+         :map ivy-switch-buffer-map
+         ("C-k" . ivy-previous-line)
+         ("C-l" . ivy-done)
+         ("C-d" . ivy-switch-buffer-kill)
+         :map ivy-reverse-i-search-map
+         ("C-k" . ivy-previous-line)
+         ("C-d" . ivy-reverse-i-search-kill))
+  :init
+  (ivy-mode 1)
+  :config
+  (setq ivy-use-virtual-buffers t)
+  (setq ivy-wrap t)
+  (setq ivy-count-format "(%d/%d) ")
+  (setq enable-recursive-minibuffers t)
 
-  (use-package ivy-hydra
-    :defer t
-    :after hydra)
+  ;; Use different regex strategies per completion command
+  (push '(completion-at-point . ivy--regex-fuzzy) ivy-re-builders-alist) ;; This doesn't seem to work...
+  (push '(swiper . ivy--regex-ignore-order) ivy-re-builders-alist)
+  (push '(counsel-M-x . ivy--regex-ignore-order) ivy-re-builders-alist)
 
-  (use-package counsel
-    :bind (("M-x"      . counsel-M-x)
-	   ("C-x C-f"  . counsel-find-file)
-	   ("C-x b"    . counsel-ibuffer))
-    :config
-    (setq ivy-initial-input-alist nil)) ; Remove ^ in searches
+  ;; Set minibuffer height for different commands
+  (setf (alist-get 'counsel-projectile-ag ivy-height-alist) 15)
+  (setf (alist-get 'counsel-projectile-rg ivy-height-alist) 15)
+  (setf (alist-get 'swiper ivy-height-alist) 15)
+  (setf (alist-get 'counsel-switch-buffer ivy-height-alist) 7))
 
-  (use-package flx  ;; Improves sorting for fuzzy-matched results
-    :defer t
-    :init
-    (setq ivy-flx-limit 10000))
+(use-package ivy-hydra
+  :defer t
+  :after hydra)
 
-  (use-package smex ;; Adds M-x recent command sorting for counsel-M-x
-    :defer 1
-    :after counsel)
+(use-package ivy-rich
+  :init
+  (ivy-rich-mode 1)
+  :config
+  (setq ivy-format-function #'ivy-format-function-line))
+
+(use-package counsel
+  :bind
+  (("M-x" . counsel-M-x)
+   ("C-x b" . counsel-ibuffer)
+   ("C-x C-f" . counsel-find-file)
+   ("C-M-l" . counsel-imenu)
+   :map minibuffer-local-map
+   ("C-r" . 'counsel-minibuffer-history))
+  :custom
+  (counsel-linux-app-format-function #'counsel-linux-app-format-function-name-only)
+  :config
+  (setq ivy-initial-inputs-alist nil)) ;; Don't start searches with ^
+
+(use-package flx  ;; Improves sorting for fuzzy-matched results
+  :defer t
+  :init
+  (setq ivy-flx-limit 10000))
+
+(use-package smex ;; Adds M-x recent command sorting for counsel-M-x
+  :defer 1
+  :after counsel)
+
+(use-package wgrep)
+
+(my/leader-key-def
+ "r"   '(ivy-resume :which-key "ivy resume")
+ "f"   '(:ignore t :which-key "files")
+ "ff"  '(counsel-find-file :which-key "open file")
+ "C-f" 'counsel-find-file
+ "fr"  '(counsel-recentf :which-key "recent files")
+ "fR"  '(revert-buffer :which-key "revert file")
+ "fj"  '(counsel-file-jump :which-key "jump to file"))
 
 (use-package undo-tree
   :diminish undo-tree-mode
@@ -524,8 +586,8 @@
 (use-package rainbow-delimiters
   :hook (prog-mode . rainbow-delimiters-mode))
 
-  (use-package org
-    :load-path ("~/vendor/org-mode/lisp" "~/vendor/org-mode/contrib/lisp"))
+(use-package org
+  :load-path ("~/vendor/org-mode/lisp" "~/vendor/org-mode/contrib/lisp"))
 
 (defun my/org-mode-setup ()
   (org-indent-mode)
@@ -544,6 +606,7 @@
   (setq org-ellipsis "  "))
 
 (use-package org-superstar
+  :diminish t
   :after org
   :hook (org-mode . org-superstar-mode)
   :config
@@ -558,6 +621,7 @@
   (org-superstar-headline-bullets-list '("◉" "○" "●" "○" "●" "○" "●")))
 
   (use-package org
+    :diminish t
     :config
     (setq org-src-window-setup 'current-window)
     (setq org-edit-src-persistent-message nil)
@@ -568,6 +632,7 @@
     (setq org-hide-block-startup t))
 
   (use-package org
+    :diminish
     :config
     (setq org-structure-template-alist
 	'(("e" . "src emacs-lisp"))))
@@ -579,7 +644,12 @@
 (add-hook 'org-mode-hook (lambda () (add-hook 'after-save-hook #'my/org-babel-tangle-save
                                          'run-at-end 'only-in-org-mode)))
 
-(use-package olivetti)
+(use-package olivetti
+  :diminish t
+  :config
+  (setq olivetti-body-width 0.7)
+  (setq olivetti-minimum-body-width 80)
+  (setq olivetti-recall-visual-line-mode-entry-state t))
 
 (use-package toc-org
   :hook (org-mode . toc-org-mode))
