@@ -10,7 +10,7 @@
   - [[#utf-8-coding-system][UTF-8 Coding System]]
 - [[#package-management][Package Management]]
   - [[#package-archives][Package Archives]]
-  - [[#configure-package-manager][Configure Package Manager]]
+  - [[#configure-packxage-manager][Configure Packxage Manager]]
   - [[#use-package][Use Package]]
   - [[#auto-update-packages][Auto update packages]]
   - [[#diminish][Diminish]]
@@ -157,12 +157,13 @@ Garbage Collect when Emacs is out of focus and avoid garbage collection when usi
 * Package Management
 ** Package Archives
 #+begin_src emacs-lisp
-  (setq package-user-dir (expand-file-name "elpa" user-emacs-directory)
-        package-archives
-        '(("gnu"   . "https://elpa.gnu.org/packages/")
-          ("melpa" . "https://melpa.org/packages/")))
+(setq package-user-dir (expand-file-name "elpa" user-emacs-directory)
+      package-archives
+      '(("gnu"   . "https://elpa.gnu.org/packages/")
+        ("melpa" . "https://melpa.org/packages/")))
 #+end_src
-** Configure Package Manager
+
+** Configure Packxage Manager
 #+begin_src emacs-lisp
   (unless (bound-and-true-p package--initialized)
     (setq package-enable-at-startup nil)          ; To prevent initializing twice
@@ -173,6 +174,7 @@ Garbage Collect when Emacs is out of focus and avoid garbage collection when usi
   (eval-and-compile
     (setq use-package-verbose (not (bound-and-true-p byte-compile-current-file))))
 #+end_src
+
 ** Use Package
 #+begin_src emacs-lisp
   ;; Install use-package if not installed
@@ -190,6 +192,7 @@ Garbage Collect when Emacs is out of focus and avoid garbage collection when usi
     (require 'use-package)
     (require 'bind-key))
 #+end_src
+
 ** Auto update packages
 #+begin_src emacs-lisp
   (use-package auto-package-update
@@ -202,15 +205,18 @@ Garbage Collect when Emacs is out of focus and avoid garbage collection when usi
     :config
     (auto-package-update-maybe))
 #+end_src
+
 ** Diminish
 #+begin_src emacs-lisp
   (use-package diminish)
 #+end_src
+
 * Personal Information
 #+begin_src emacs-lisp
-  (setq user-full-name "Vedant Sansare")
-  (setq user-mail-address "vedantsansare23@gmail.com")
+(setq user-full-name "Vedant Sansare")
+(setq user-mail-address "vedantsansare23@gmail.com")
 #+end_src
+
 * User Interface
 ** Disable redundant UI component
 #+begin_src emacs-lisp
@@ -523,6 +529,10 @@ Displays keybindings
   (setf (alist-get 'swiper ivy-height-alist) 15)
   (setf (alist-get 'counsel-switch-buffer ivy-height-alist) 7))
 
+(use-package ivy-prescient
+  :init
+  (ivy-prescient-mode 1))
+
 (use-package ivy-hydra
   :defer t
   :after hydra)
@@ -566,6 +576,7 @@ Displays keybindings
  "fR"  '(revert-buffer :which-key "revert file")
  "fj"  '(counsel-file-jump :which-key "jump to file"))
 #+end_src
+
 ** Undo tree
 #+begin_src emacs-lisp
 (use-package undo-tree

@@ -69,10 +69,10 @@
 (when (display-graphic-p)
   (setq x-select-request-type '(UTF8_STRING COMPOUND_TEXT TEXT STRING)))
 
-  (setq package-user-dir (expand-file-name "elpa" user-emacs-directory)
-        package-archives
-        '(("gnu"   . "https://elpa.gnu.org/packages/")
-          ("melpa" . "https://melpa.org/packages/")))
+(setq package-user-dir (expand-file-name "elpa" user-emacs-directory)
+      package-archives
+      '(("gnu"   . "https://elpa.gnu.org/packages/")
+        ("melpa" . "https://melpa.org/packages/")))
 
   (unless (bound-and-true-p package--initialized)
     (setq package-enable-at-startup nil)          ; To prevent initializing twice
@@ -110,8 +110,8 @@
 
   (use-package diminish)
 
-  (setq user-full-name "Vedant Sansare")
-  (setq user-mail-address "vedantsansare23@gmail.com")
+(setq user-full-name "Vedant Sansare")
+(setq user-mail-address "vedantsansare23@gmail.com")
 
     (use-package emacs
       :init
@@ -339,6 +339,10 @@
   (setf (alist-get 'counsel-projectile-rg ivy-height-alist) 15)
   (setf (alist-get 'swiper ivy-height-alist) 15)
   (setf (alist-get 'counsel-switch-buffer ivy-height-alist) 7))
+
+(use-package ivy-prescient
+  :init
+  (ivy-prescient-mode 1))
 
 (use-package ivy-hydra
   :defer t
@@ -653,3 +657,16 @@
 
 (use-package toc-org
   :hook (org-mode . toc-org-mode))
+(custom-set-variables
+ ;; custom-set-variables was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ '(package-selected-packages
+   '(yasnippet writeroom-mode which-key wgrep use-package unicode-fonts undo-tree toc-org smex smartparens rainbow-delimiters page-break-lines org-superstar org-bullets olivetti lsp-ui ivy-rich ivy-prescient ivy-hydra highlight-indent-guides general format-all flycheck-posframe flycheck-grammarly flx evil-collection doom-themes doom-modeline diminish default-text-scale counsel company-tabnine company-box bufler auto-package-update amx ace-window)))
+(custom-set-faces
+ ;; custom-set-faces was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ '(flycheck-posframe-border-face ((t (:inherit default)))))
