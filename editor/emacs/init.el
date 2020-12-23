@@ -66,6 +66,11 @@
         search-ring
         regexp-search-ring))
 
+(require 'recentf)
+(setq recentf-max-saved-items 200
+      recentf-max-menu-items 15)
+(recentf-mode)
+
 (setq custom-file "~/.emacs.d/custom-settings.el")
 (load custom-file t)
 
@@ -74,6 +79,8 @@
 (setenv "LANG" "en_GB")
 
 (global-set-key (kbd "C-z") 'undo) ;Emacs default is bound to hide Emacs.
+
+(setq default-directory "~/" )
 
 (setq package-archives
       '(("gnu"   . "https://elpa.gnu.org/packages/")

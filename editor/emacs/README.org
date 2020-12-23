@@ -9,10 +9,12 @@
   - [[#clean-emacsd][Clean .emacs.d]]
     - [[#backups][Backups]]
     - [[#history][History]]
+    - [[#recent-files][Recent Files]]
     - [[#custom-file][Custom File]]
   - [[#utf-8-unix-system][=utf-8-unix= System]]
   - [[#set-default-language][Set Default Language]]
   - [[#c-z][C-z]]
+  - [[#uniform-starting-directory][Uniform Starting Directory]]
 - [[#package-management][Package Management]]
   - [[#package-archives][Package Archives]]
   - [[#configure-package-manager][Configure Package Manager]]
@@ -158,6 +160,14 @@ Garbage Collect when Emacs is out of focus and avoid garbage collection when usi
         search-ring
         regexp-search-ring))
 #+end_src
+*** Recent Files
+#+begin_src emacs-lisp
+(require 'recentf)
+(setq recentf-max-saved-items 200
+      recentf-max-menu-items 15)
+(recentf-mode)
+#+end_src
+
 *** Custom File
 #+begin_src emacs-lisp
 (setq custom-file "~/.emacs.d/custom-settings.el")
@@ -176,6 +186,11 @@ Garbage Collect when Emacs is out of focus and avoid garbage collection when usi
 #+begin_src emacs-lisp
 (global-set-key (kbd "C-z") 'undo) ;Emacs default is bound to hide Emacs.
 #+end_src
+** Uniform Starting Directory
+#+begin_src emacs-lisp
+(setq default-directory "~/" )
+#+end_src
+
 * Package Management
 ** Package Archives
 #+begin_src emacs-lisp
