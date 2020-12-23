@@ -79,6 +79,7 @@
 (setenv "LANG" "en_GB")
 
 (global-set-key (kbd "C-z") 'undo) ;Emacs default is bound to hide Emacs.
+(global-set-key (kbd "C-SPC") nil)
 
 (setq default-directory "~/" )
 
@@ -133,7 +134,7 @@
 (setq-default indent-tabs-mode nil)
 (setq pop-up-windows nil)
 (tool-bar-mode 0) 
-(tooltip-mode  0)
+;(tooltip-mode  0)
 (scroll-bar-mode 0)
 
 ;; Underline line at descent position, not baseline position
@@ -239,9 +240,7 @@
 (use-package general
   :config
   (general-create-definer cpkx/leader-key-def
-    :keymaps '(normal insert visual emacs)
-    :prefix "SPC"
-    :global-prefix "C-SPC")
+    :prefix "C-SPC")
 
   (general-create-definer cpkx/ctrl-c-keys
     :prefix "C-c"))
@@ -297,7 +296,11 @@
 
 
 (use-package ivy-prescient
-  :init
+  :after counsel
+  :custom
+  (ivy-prescient-enable-filtering nil)
+  :config
+  (prescient-persist-mode 1)
   (ivy-prescient-mode 1))
 
 (use-package ivy-hydra
@@ -314,7 +317,7 @@
   :ensure t
   :bind
   (("M-x"     . counsel-M-x)
-   ("C-x b"   . counsel-ibuffer)
+   ("C-M-j"   . 'counsel-switch-buffer)
    ("C-x C-f" . counsel-find-file)
    ("C-M-l"   . counsel-imenu)
    :map minibuffer-local-map
@@ -322,11 +325,8 @@
   :config
   (setq ivy-initial-inputs-alist nil) ;; Don't start searches with ^
   (setf (alist-get 'counsel-switch-buffer ivy-height-alist) 7)
-  (push '(counsel-M-x . ivy--regex-ignore-order) ivy-re-builders-alist))
-
-(use-package smex ;; Adds M-x recent command sorting for counsel-M-x
-  :defer 1
-  :after counsel)
+  (push '(counsel-M-x . ivy--regex-ignore-order) ivy-re-builders-alist)
+  (counsel-mode 1))
 
 (use-package flx  ;; Improves sorting for fuzzy-matched results
   :defer t
@@ -338,11 +338,34 @@
   "fr"  '(counsel-recentf :which-key "recent files")
   "fR"  '(revert-buffer :which-key "revert file"))
 
+(use-package company
+  :diminish t
+  :after lsp-mode
+  :hook (lsp-mode . company-mode)
+  :bind (:map company-active-map
+              ("<tab>" . company-complete-selection))
+  (:map lsp-mode-map
+        ("<tab>" . company-indent-or-complete-common))
+  :custom
+  (company-minimum-prefix-length 1)
+  (company-idle-delay 0.0))
+
+(use-package company-box
+  :diminish t
+  :hook (company-mode . company-box-mode))
+
+(defun cpkx/lsp-mode-setup ()
+  (setq lsp-headerline-breadcrumb-segments '(path-up-to-project file symbols))
+  (lsp-headerline-breadcrumb-mode))
+
 (use-package lsp-mode
   :defer t
-  :hook ((java-mode python-mode go-mode
-                    js-mode js2-mode typescript-mode web-mode
-                    c-mode c++-mode objc-mode) . lsp)
+  :commands (lsp lsp-deferred)
+  :hook (lsp-mode . cpkx/lsp-mode-setup)
+  :init
+  (setq lsp-keymap-prefix "C-c l")  ;; Or 'C-l', 's-l'
+  :config
+  (lsp-enable-which-key-integration t)
   :custom
   (lsp-auto-guess-root nil)
   (lsp-prefer-flymake nil) ; Use flycheck instead of flymake
@@ -350,15 +373,12 @@
   (read-process-output-max (* 1024 1024))
   (lsp-eldoc-hook nil))
 
-
 (use-package lsp-ui
   :after lsp-mode
   :diminish
   :hook (lsp-mode . lsp-ui-mode)
-  :custom-face
-  (lsp-ui-doc-background ((t (:background nil))))
-  (lsp-ui-doc-header ((t (:inherit (font-lock-string-face italic)))))
   :custom
+  (lsp-ui-doc-position 'bottom)
   (lsp-ui-doc-header t)
   (lsp-ui-doc-include-signature t)
   (lsp-ui-doc-border (face-foreground 'default))
@@ -458,17 +478,27 @@
   :config
   (setq bibtex-completion-bibliography    '("~/Dropbox/org/Research/PhD.bib"))
   (setq bibtex-completion-notes-path        "~/Dropbox/org/Research/Notes")
-  (setq bibtex-completion-pdf-field "file")
-  (setq ivy-re-builders-alist
-        '((ivy-bibtex . ivy--regex-ignore-order)
-          (t . ivy--regex-plus))))
+  (setq bibtex-completion-library-path      "~/Dropbox/org/Research/zotero-library/")
+  (setq bibtex-completion-pdf-field "file"))
+
+(defun cpkx/org-ref-open-pdf-at-point ()
+  "Open the pdf for bibtex key under point if it exists."
+  (interactive)
+  (let* ((results (org-ref-get-bibtex-key-and-file))
+         (key (car results))
+         (pdf-file (car (bibtex-completion-find-pdf key))))
+    (if (file-exists-p pdf-file)
+        (org-open-file pdf-file)
+      (message "No PDF found for %s" key))))
 
 (use-package org-ref
   :config
   (setq org-ref-default-bibliography      '("~/Dropbox/org/Research/PhD.bib"))
   (setq org-ref-bibliography-notes          "~/Dropbox/org/Research/notes.org")
+  (setq org-ref-pdf-directory               "~/Dropbox/org/Research/zotero-library/")
   (setq org-ref-completion-library        'org-ref-ivy-cite)
-  (setq org-ref-get-pdf-filename-function 'org-ref-get-pdf-filename-ivy-bibtex))
+  (setq org-ref-get-pdf-filename-function 'org-ref-get-pdf-filename-ivy-bibtex)
+  (setq org-ref-open-pdf-function 'cpkx/org-ref-open-pdf-at-point))
 
 (use-package org-noter
   :config
