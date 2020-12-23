@@ -238,8 +238,6 @@
 
 (use-package general
   :config
-  (general-evil-setup t)
-
   (general-create-definer cpkx/leader-key-def
     :keymaps '(normal insert visual emacs)
     :prefix "SPC"
@@ -259,38 +257,6 @@
 
 (global-set-key (kbd "<escape>") 'keyboard-escape-quit)
 
-(defun cpkx/evil-hook ()
-  (dolist (mode '(custom-mode
-                  git-rebase-mode))
-    (add-to-list 'evil-emacs-state-modes mode)))
-
-(use-package evil
-  :init
-  (setq evil-want-integration t)
-  (setq evil-want-keybinding nil)
-  (setq evil-want-C-u-scroll t)
-  (setq evil-want-C-i-jump nil)
-  (setq evil-respect-visual-line-mode t)
-  :config
-  (add-hook 'evil-mode-hook 'cpkx/evil-hook)
-  (evil-mode 1)
-  (define-key evil-insert-state-map (kbd "C-g") 'evil-normal-state)
-  (define-key evil-insert-state-map (kbd "C-h") 'evil-delete-backward-char-and-join)
-
-  ;; Use visual line motions even outside of visual-line-mode buffers
-  (evil-global-set-key 'motion "j" 'evil-next-visual-line)
-  (evil-global-set-key 'motion "k" 'evil-previous-visual-line)
-
-  (evil-set-initial-state 'messages-buffer-mode 'normal)
-  (evil-set-initial-state 'dashboard-mode 'normal))
-
-(use-package evil-collection
-  :after evil
-  :custom
-  (evil-collection-outline-bind-tab-p nil)
-  :config
-  (evil-collection-init))
-
 (use-package default-text-scale
   :defer 1
   :config
@@ -302,8 +268,6 @@
   (setq aw-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l)))
 
 (winner-mode)
-(define-key evil-window-map "u" 'winner-undo)
-(define-key evil-window-map "r" 'winner-redo)
 
 (use-package ivy
   :diminish
@@ -468,8 +432,7 @@
   (org-indent-mode)
   (diminish 'org-indent-mode)
   (variable-pitch-mode 1)
-  (auto-fill-mode 0)
-  (setq evil-auto-indent nil))
+  (auto-fill-mode 0))
 
 (use-package org
   :diminish t
