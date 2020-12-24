@@ -64,13 +64,20 @@
     - [[#tangle-save][Tangle Save]]
   - [[#bibtex][Bibtex]]
   - [[#org-ref][Org-Ref]]
+  - [[#roam][Roam]]
+    - [[#org-roam][Org-Roam]]
+    - [[#org-roam-bibtex][Org-Roam-Bibtex]]
   - [[#org-noter][Org-Noter]]
+  - [[#org-capture][Org-Capture]]
+  - [[#pdf][PDF]]
+    - [[#org-pdftools][Org-PDFTools]]
+    - [[#org-noter-pdftools][Org-Noter-PDFTools]]
   - [[#writing][Writing]]
     - [[#olivetti][Olivetti]]
     - [[#line-spacing][Line Spacing]]
     - [[#export][Export]]
   - [[#toc][TOC]]
-- [[#pdf][PDF]]
+- [[#pdf-1][PDF]]
   - [[#pdf-tools][PDF Tools]]
 - [[#start-server][Start Server]]
 
@@ -502,6 +509,7 @@ Temporary solution to remove buffer face mode from modeline
     (setq ivy-format-function #'ivy-format-function-line))
 
   (use-package counsel
+    :diminish counsel-mode
     :ensure t
     :bind
     (("M-x"     . counsel-M-x)
@@ -531,7 +539,7 @@ Temporary solution to remove buffer face mode from modeline
 ** Company
 #+begin_src emacs-lisp
   (use-package company
-    :diminish t
+    :diminish company-mode
     :after lsp-mode
     :hook (lsp-mode . company-mode)
     :bind (:map company-active-map
@@ -543,7 +551,7 @@ Temporary solution to remove buffer face mode from modeline
     (company-idle-delay 0.0))
 
   (use-package company-box
-    :diminish t
+    :diminish company-box-mode
     :hook (company-mode . company-box-mode))
 #+end_src
 
@@ -555,7 +563,6 @@ Temporary solution to remove buffer face mode from modeline
     (lsp-headerline-breadcrumb-mode))
 
   (use-package lsp-mode
-    :defer t
     :commands (lsp lsp-deferred)
     :hook (lsp-mode . cpkx/lsp-mode-setup)
     :init
@@ -706,45 +713,150 @@ Temporary solution to remove buffer face mode from modeline
 
 ** Bibtex
 #+begin_src emacs-lisp
-  (use-package ivy-bibtex
-    :defer t
-    :config
-    (setq bibtex-completion-bibliography    '("~/Dropbox/org/Research/PhD.bib"))
-    (setq bibtex-completion-notes-path        "~/Dropbox/org/Research/Notes")
-    (setq bibtex-completion-library-path      "~/Dropbox/org/Research/zotero-library/")
-    (setq bibtex-completion-pdf-field "file"))
+  (setq bibtex-completion-bibliography    '("~/Dropbox/org/Research/zotLib.bib"))
+  (setq bibtex-completion-library-path      "~/Dropbox/org/Research/zotero-library/")
+  (setq bibtex-completion-notes-path        "D:/Work/Study/PhD/Research/Notes/")
+  (setq bibtex-completion-pdf-field "file")
+  (setq bibtex-completion-notes-template-multiple-files
+        (concat
+         "#+TITLE: ${title}\n"
+         "#+ROAM_KEY: cite:${=key=}\n"
+         "* TODO Notes\n"
+         ":PROPERTIES:\n"
+         ":Custom_ID: ${=key=}\n"
+         ":NOTER_DOCUMENT: %(orb-process-file-field \"${=key=}\")\n"
+         ":AUTHOR: ${author-abbrev}\n"
+         ":JOURNAL: ${journaltitle}\n"
+         ":DATE: ${date}\n"
+         ":YEAR: ${year}\n"
+         ":DOI: ${doi}\n"
+         ":URL: ${url}\n"
+         ":END:\n\n"
+         ))
 #+end_src
 
 ** Org-Ref
 #+begin_src emacs-lisp
-  (defun cpkx/org-ref-open-pdf-at-point ()
-    "Open the pdf for bibtex key under point if it exists."
-    (interactive)
-    (let* ((results (org-ref-get-bibtex-key-and-file))
-           (key (car results))
-           (pdf-file (car (bibtex-completion-find-pdf key))))
-      (if (file-exists-p pdf-file)
-          (org-open-file pdf-file)
-        (message "No PDF found for %s" key))))
-
   (use-package org-ref
     :config
-    (setq org-ref-default-bibliography      '("~/Dropbox/org/Research/PhD.bib"))
-    (setq org-ref-bibliography-notes          "~/Dropbox/org/Research/notes.org")
     (setq org-ref-pdf-directory               "~/Dropbox/org/Research/zotero-library/")
+    (setq org-ref-default-bibliography  (list "~/Dropbox/org/Research/zotLib.bib"))
+    (setq org-ref-bibliography-notes          "D:/Work/Study/PhD/Research/Notes/bibnotes.org")
+    (setq org-ref-notes-directory             "D:/Work/Study/PhD/Research/Notes/")
+    (setq org-ref-note-title-format "* TODO %y - %t\n :PROPERTIES:\n  :Custom_ID: %k\n  :NOTER_DOCUMENT: %F\n :ROAM_KEY: cite:%k\n  :AUTHOR: %9a\n  :JOURNAL: %j\n  :YEAR: %y\n  :VOLUME: %v\n  :PAGES: %p\n  :DOI: %D\n  :URL: %U\n :END:\n\n")
+    (setq org-ref-notes-function            'orb-edit-notes)
     (setq org-ref-completion-library        'org-ref-ivy-cite)
-    (setq org-ref-get-pdf-filename-function 'org-ref-get-pdf-filename-ivy-bibtex)
-    (setq org-ref-open-pdf-function 'cpkx/org-ref-open-pdf-at-point))
+    (setq org-ref-get-pdf-filename-function 'org-ref-get-pdf-filename-helm-bibtex))
+    #+end_src
+
+** Roam
+*** Org-Roam
+#+begin_src emacs-lisp
+  (use-package org-roam
+    :hook (org-load . org-roam-mode)
+    :commands (org-roam-buffer-toggle-display
+               org-roam-find-file
+               org-roam-graph
+               org-roam-insert
+               org-roam-switch-to-buffer
+               org-roam-dailies-date
+               org-roam-dailies-today
+               org-roam-dailies-tomorrow
+               org-roam-dailies-yesterday)
+    :preface
+    ;; Set this to nil so we can later detect whether the user has set a custom
+    ;; directory for it, and default to `org-directory' if they haven't.
+    (defvar org-roam-directory nil)
+    :init
+    :config
+    (setq org-roam-directory "D:/Work/Study/PhD/Research/Notes/"
+          org-roam-verbose nil  ; https://youtu.be/fn4jIlFwuLU
+          org-roam-buffer-no-delete-other-windows t ; make org-roam buffer sticky
+          org-roam-completion-system 'default
+          )
+
+    ;; Normally, the org-roam buffer doesn't open until you explicitly call
+    ;; `org-roam'. If `+org-roam-open-buffer-on-find-file' is non-nil, the
+    ;; org-roam buffer will be opened for you when you use `org-roam-find-file'
+    ;; (but not `find-file', to limit the scope of this behavior).
+    (add-hook 'find-file-hook
+              (defun +org-roam-open-buffer-maybe-h ()
+                (and +org-roam-open-buffer-on-find-file
+                     (memq 'org-roam-buffer--update-maybe post-command-hook)
+                     (not (window-parameter nil 'window-side)) ; don't proc for popups
+                     (not (eq 'visible (org-roam-buffer--visibility)))
+                     (with-current-buffer (window-buffer)
+                       (org-roam-buffer--get-create)))))
+
+    ;; Hide the mode line in the org-roam buffer, since it serves no purpose. This
+    ;; makes it easier to distinguish among other org buffers.
+    (add-hook 'org-roam-buffer-prepare-hook #'hide-mode-line-mode))
+
+
+  ;; Since the org module lazy loads org-protocol (waits until an org URL is
+  ;; detected), we can safely chain `org-roam-protocol' to it.
+  (use-package org-roam-protocol
+    :after org-protocol)
+
+
+  (use-package company-org-roam
+    :after org-roam)
+#+end_src
+
+*** Org-Roam-Bibtex
+#+begin_src emacs-lisp
+  (use-package org-roam-bibtex
+    :after (org-roam)
+    :hook (org-roam-mode . org-roam-bibtex-mode)
+    :config
+    (setq org-roam-bibtex-preformat-keywords
+          '("=key=" "title" "url" "file" "author-or-editor" "keywords"))
+    (setq orb-templates
+          '(("r" "ref" plain (function org-roam-capture--get-point)
+             ""
+             :file-name "${slug}"
+             :head "#+TITLE: ${=key=}: ${title}\n#+ROAM_KEY: ${ref}
+
+  - tags ::
+  - keywords :: ${keywords}
+
+  \n* ${title}\n  :PROPERTIES:\n  :Custom_ID: ${=key=}\n  :URL: ${url}\n  :AUTHOR: ${author-or-editor}\n  :NOTER_DOCUMENT: %(orb-process-file-field \"${=key=}\")\n  :NOTER_PAGE: \n  :END:\n\n"
+
+             :unnarrowed t))))
 #+end_src
 
 ** Org-Noter
 #+begin_src emacs-lisp
   (use-package org-noter
+    :after (:any org pdf-view)
     :config
-    (setq orb-preformat-keywords
-          '("citekey" "title" "url" "author-or-editor" "keywords" "file")
-          orb-process-file-keyword t
-          orb-file-field-extensions '("pdf")))
+    (setq
+     ;; The WM can handle splits
+     org-noter-notes-window-location 'other-frame
+     ;; Please stop opening frames
+     org-noter-always-create-frame nil
+     ;; I want to see the whole file
+     org-noter-hide-other nil
+     ;; Everything is relative to the main notes file
+     org-noter-notes-search-path (list "D:/Work/Study/PhD/Research/Notes")
+     )
+    )
+#+end_src
+
+** PDF
+*** Org-PDFTools
+#+begin_src emacs-lisp
+(use-package org-pdftools
+  :hook (org-mode . org-pdftools-setup-link))
+#+end_src
+
+*** Org-Noter-PDFTools
+#+begin_src emacs-lisp
+(use-package org-noter-pdftools
+  :after org-noter
+  :config
+  (with-eval-after-load 'pdf-annot
+    (add-hook 'pdf-annot-activate-handler-functions #'org-noter-pdftools-jump-to-note)))
 #+end_src
 
 ** Writing
