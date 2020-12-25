@@ -117,6 +117,10 @@ Do not byte compile
 #+begin_src emacs-lisp :tangle "packages1.el" :comments no
 ;; -*- no-byte-compile: t; -*-
 #+end_src
+** General Packages
+*** Window Management
+#+begin_src emacs-lisp
+#+end_src
 * Doom Configuration
 ** Modules
 :PROPERTIES:
