@@ -1,0 +1,133 @@
+#+title: Doom Emacs Configuration
+#+author: Vedant "cupkax" Sansare
+#+date: {{{modification-time(%Y-%m-%d %H:%M, t)}}} ;{{{timezone}}}, {{{git-rev}}}
+#+startup: fold
+#+property: header-args:emacs-lisp :tangle yes :cache yes :results silent
+#+property: header-args :tangle no :results silent
+
+* Rudimentary configuration
+** Lexical Bindings (Faster Startup)
+#+begin_src emacs-lisp :comments no
+;;; config.el -*- lexical-binding: t; -*-
+#+end_src
+
+** Personal Information
+#+begin_src emacs-lisp
+(setq user-full-name "Vedant Sansare"
+      user-mail-address "vedantsansare23@.com")
+#+end_src
+
+** Better Defaults
+*** Simple Settings
+#+begin_src emacs-lisp
+(setq-default
+ delete-by-moving-to-trash t                      ; Delete files to trash
+ window-combination-resize t                      ; take new window space from all other windows (not just current)
+ x-stretch-cursor t)                              ; Stretch cursor to the glyph width
+
+(setq undo-limit 80000000                         ; Raise undo-limit to 80Mb
+      evil-want-fine-undo t                       ; By default while in insert all changes are one big blob. Be more granular
+      auto-save-default t                         ; Nobody likes to loose work, I certainly don't
+      truncate-string-ellipsis "…")               ; Unicode ellispis are nicer than "...", and also save /precious/ space
+
+
+(display-time-mode 1)                             ; Enable time in the mode-line
+(unless (equal "Battery status not available"
+               (battery))
+  (display-battery-mode 1))                       ; On laptops it's nice to know how much power you have
+(global-subword-mode 1)                           ; Iterate through CamelCase words
+#+end_src
+
+*** Custom.el
+#+begin_src emacs-lisp
+(setq-default custom-file (expand-file-name ".custom.el" doom-private-dir))
+(when (file-exists-p custom-file)
+  (load custom-file))
+#+end_src
+
+*** Windows
+#+begin_src emacs-lisp
+(setq evil-vsplit-window-right t
+      evil-split-window-below t)
+
+(defadvice! prompt-for-buffer (&rest _)
+  :after '(evil-window-split evil-window-vsplit)
+  (+ivy/switch-buffer))
+
+(setq +ivy-buffer-preview t)
+#+end_src
+
+** Doom Configuration
+*** Modules
+:PROPERTIES:
+:header-args:emacs-lisp: :tangle no
+:END:
+
+#+name: init.el
+#+begin_src emacs-lisp :tangle "init1.el" :noweb no-export :comments none
+;;; init.el -*- lexical-binding: t; -*-
+
+;; This file controls what Doom modules are enabled and what order they load in.
+;; Press 'K' on a module to view its documentation, and 'gd' to browse its directory.
+
+(doom! :completion
+       <<doom-completion>>
+
+       :ui
+       <<doom-ui>>
+
+       :editor
+       <<doom-editor>>
+
+       :emacs
+       <<doom-emacs>>
+
+       :term
+       <<doom-term>>
+
+       :checkers
+       <<doom-checkers>>
+
+       :tools
+       <<doom-tools>>
+
+       :os
+       <<doom-os>>
+
+       :lang
+       <<doom-lang>>
+
+       :email
+       <<doom-email>>
+
+       :app
+       <<doom-app>>
+
+       :config
+       <<doom-config>>
+       )
+#+end_src
+**** doom-completion
+#+name: doom-completion
+#+begin_src emacs-lisp
+(company
+ +childframe)
+;;helm
+;;ido
+(ivy
+ +childframe
+ +prescient
+ +icons
+ +fuzzy)
+#+end_src
+**** doom-ui
+**** doom-editor
+**** doom-emacs
+**** doom-term
+**** doom-checkers
+**** doom-tools
+**** doom-os
+**** doom-lang
+**** doom-email
+**** doom-app
+**** doom-config
