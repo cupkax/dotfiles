@@ -75,6 +75,32 @@
 
 (add-hook 'after-change-major-mode-hook #'doom-modeline-conditional-buffer-encoding)
 #+end_src
+** Info Colours
+#+begin_src emacs-lisp
+(use-package! info-colors
+  :commands (info-colors-fontify-node))
+
+(add-hook 'Info-selection-hook 'info-colors-fontify-node)
+
+(add-hook 'Info-mode-hook #'mixed-pitch-mode)
+#+end_src
+* Keybindings
+** General
+#+begin_src emacs-lisp
+(use-package! general)
+;; Creating a constant for making future changes simpler
+(defconst my-leader "SPC")
+;; Tell general all about it
+(general-create-definer my-leader-def
+  :prefix my-leader)
+#+end_src
+** Evil
+#+begin_src emacs-lisp
+;; I like short names
+(general-evil-setup t)
+;; Stop telling me things begin with non-prefix keys
+(general-auto-unbind-keys)
+#+end_src
 * Window and Buffer Config
 ** Window Config
 *** Window Title
@@ -109,18 +135,67 @@
 (setq doom-fallback-buffer-name "► Doom"
       +doom-dashboard-name      "► Doom")
 #+end_src
-* Package Loading
-:PROPERTIES:
-:header-args:emacs-lisp: :tangle "packages1.el" :comments no
-:END:
-Do not byte compile
-#+begin_src emacs-lisp :tangle "packages1.el" :comments no
-;; -*- no-byte-compile: t; -*-
-#+end_src
-** General Packages
-*** Window Management
+
+*** Better Buffers
 #+begin_src emacs-lisp
+(use-package! bufler
+  :general
+  (:keymaps 'doom-leader-map
+   "b b" 'bufler-workspace-switch-buffer
+   "b B" 'bufler-switch-buffer)
+  :config
+  (setq bufler-workspace-switch-buffer-sets-workspace t))
 #+end_src
+** Centaur Tabs
+#+begin_src emacs-lisp
+(after! centaur-tabs
+  (centaur-tabs-mode -1)
+  (setq centaur-tabs-height 36
+        centaur-tabs-set-icons t
+        centaur-tabs-modified-marker "o"
+        centaur-tabs-close-button "×"
+        centaur-tabs-set-bar 'above
+        centaur-tabs-gray-out-icons 'buffer)
+  (centaur-tabs-change-fonts "P22 Underground Book" 160))
+#+end_src
+
+* Development
+** Productivity
+*** Company
+**** Initial Setup
+#+begin_src emacs-lisp
+(after! company
+  (setq company-idle-delay 0.5
+        company-minimum-prefix-length 2)
+  (setq company-show-numbers t)
+  (add-hook 'evil-normal-state-entry-hook #'company-abort))
+#+end_src
+
+**** Prescient
+#+begin_src emacs-lisp
+(setq-default history-length 1000)
+(setq-default prescient-history-length 1000)
+
+#+end_src
+
+**** Plain Text
+#+begin_src emacs-lisp
+(set-company-backend!
+  '(text-mode
+    markdown-mode
+    gfm-mode)
+  '(:seperate
+    company-ispell
+    company-files
+    company-yasnippet))
+#+end_src
+* Applications
+** Discod
+#+begin_src emacs-lisp
+(setq elcord-use-major-mode-as-main-icon t)
+#+end_src
+
+
 * Doom Configuration
 ** Modules
 :PROPERTIES:
@@ -200,8 +275,8 @@ ophints
 (popup
  +all
  +defaults)
-;;(tabs                      ; an tab bar for Emacs
-;;  +centaur-tabs)           ; ... with prettier tabs
+(tabs                      ; an tab bar for Emacs
+  +centaur-tabs)           ; ... with prettier tabs
 treemacs
 ;;unicode                    ; extended unicode support for various languages
 vc-gutter
@@ -323,4 +398,146 @@ yaml
 #+begin_src emacs-lisp
 literate
 (default +bindings +smartparens)
+#+end_src
+* Package Loading
+:PROPERTIES:
+:header-args:emacs-lisp: :tangle "~/.doom.d/packages.el" :comments no
+:END:
+Do not byte compile
+#+begin_src emacs-lisp :tangle "~/.doom.d/packages.el" :comments no
+;; -*- no-byte-compile: t; -*-
+#+end_src
+** Fun Packages
+*** Tell em about it
+#+begin_src emacs-lisp
+(package! elcord)
+#+end_src
+** Aesthetics
+*** Bufler
+#+begin_src emacs-lisp
+(package! bufler)
+#+end_src
+*** Dired Icons
+*** Evil Better Visual Line
+#+begin_src emacs-lisp
+(package! evil-better-visual-line)
+#+end_src
+*** Info Colours
+#+begin_src emacs-lisp
+(package! info-colors)
+#+end_src
+** Keybindings
+#+begin_src emacs-lisp
+(package! general)
+#+end_src
+** Magit
+*** Magit Delta
+#+begin_src emacs-lisp
+(package! magit-delta
+  :recipe (:host github
+           :repo "dandavison/magit-delta"))
+#+end_src
+*** Magit Hub
+#+begin_src emacs-lisp
+(package! magithub)
+#+end_src
+*** Magit TODOS
+#+begin_src emacs-lisp
+(package! magit-org-todos)
+(package! magit-todos)
+#+end_src
+** Flycheck
+#+begin_src emacs-lisp
+(package! package-lint)
+(package! flycheck-package)
+#+end_src
+** Ebooks
+*** EPUBs major mode
+#+begin_src emacs-lisp
+(package! nov)
+#+end_src
+*** Calibre
+#+begin_src emacs-lisp
+(package! calibredb)
+#+end_src
+** Org-mode
+*** Declarative Capture
+#+begin_src emacs-lisp
+(package! doct
+  :recipe (:host github
+           :repo "progfolio/doct"))
+#+end_src
+*** Super Agenda
+#+begin_src emacs-lisp
+(package! org-super-agenda)
+#+end_src
+*** Visuals
+**** Tables
+#+begin_src emacs-lisp
+(package! org-pretty-table-mode
+  :recipe (:host github
+           :repo "Fuco1/org-pretty-table"))
+#+end_src
+**** Pretty Tags
+#+begin_src emacs-lisp
+(package! org-pretty-tags)
+#+end_src
+*** Org Download
+#+begin_src emacs-lisp
+(package! org-download
+  :recipe (:host github
+           :repo "abo-abo/org-download"))
+#+end_src
+*** Org Graph View
+#+begin_src emacs-lisp
+(package! org-graph-view
+  :recipe (:host github
+           :repo "alphapapa/org-graph-view"))
+#+end_src
+*** Org Helm Rifle
+#+begin_src emacs-lisp
+(package! helm-org-rifle)
+#+end_src
+*** Org Noter
+#+begin_src emacs-lisp
+(package! org-noter)
+#+end_src
+*** Org Protocol Updates
+#+begin_src emacs-lisp
+(package! org-protocol-capture-html
+  :recipe (:host github
+           :repo "alphapapa/org-protocol-capture-html"))
+#+end_src
+*** Org Ref
+#+begin_src emacs-lisp
+(package! org-ref)
+#+end_src
+*** Org Roam Bibtex
+#+begin_src emacs-lisp
+(package! org-roam-bibtex)
+#+end_src
+
+** Zotero
+#+begin_src emacs-lisp
+(package! zotxt)
+#+end_src
+** Miscellaneous
+*** Handle Large Files
+#+begin_src emacs-lisp
+(package! vlf
+  :recipe (:host github
+           :repo "m00natic/vlfi"
+           :files ("*.el"))
+  :disable t)
+
+(use-package! vlf-setup
+  :defer-incrementally
+  vlf-tune
+  vlf-base
+  vlf-write
+  vlf-search
+  vlf-occur
+  vlf-follow
+  vlf-ediff
+  vlf)
 #+end_src

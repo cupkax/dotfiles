@@ -28,8 +28,8 @@
        (popup
         +all
         +defaults)
-       ;;(tabs                      ; an tab bar for Emacs
-       ;;  +centaur-tabs)           ; ... with prettier tabs
+       (tabs                      ; an tab bar for Emacs
+         +centaur-tabs)           ; ... with prettier tabs
        treemacs
        ;;unicode                    ; extended unicode support for various languages
        vc-gutter
