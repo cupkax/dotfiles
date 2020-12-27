@@ -29,7 +29,7 @@
         +all
         +defaults)
        (tabs                      ; an tab bar for Emacs
-         +centaur-tabs)           ; ... with prettier tabs
+        +centaur-tabs)           ; ... with prettier tabs
        treemacs
        ;;unicode                    ; extended unicode support for various languages
        vc-gutter
@@ -37,7 +37,7 @@
        (window-select
         +numbers)
        workspaces
-       ;;zen                          ; distraction-free coding or writing
+       zen                          ; distraction-free coding or writing
 
        :editor
        (evil
