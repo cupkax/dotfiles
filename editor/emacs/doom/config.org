@@ -88,18 +88,39 @@
 ** General
 #+begin_src emacs-lisp
 (use-package! general)
-;; Creating a constant for making future changes simpler
 (defconst my-leader "SPC")
-;; Tell general all about it
 (general-create-definer my-leader-def
   :prefix my-leader)
 #+end_src
 ** Evil
+*** Miscellaneous Changes
 #+begin_src emacs-lisp
-;; I like short names
 (general-evil-setup t)
-;; Stop telling me things begin with non-prefix keys
 (general-auto-unbind-keys)
+#+end_src
+** Which-key
+*** Key delay
+#+begin_src emacs-lisp
+(setq which-key-idle-delay 0.0)
+#+end_src
+*** Replace =evil= with unicode symbols
+#+begin_src emacs-lisp
+(setq which-key-allow-multiple-replacements t)
+(after! which-key
+  (pushnew!
+   which-key-replacement-alist
+   '(("" . "\\`+?evil[-:]?\\(?:a-\\)?\\(.*\\)") . (nil . "◂\\1"))
+   '(("\\`g s" . "\\`evilem--?motion-\\(.*\\)") . (nil . "◃\\1"))
+   ))
+#+end_src
+* Navigation
+** Ivy
+#+begin_src emacs-lisp
+(setq ivy-read-action-function #'ivy-hydra-read-action)
+#+end_src
+** Treemacs
+#+begin_src emacs-lisp
+
 #+end_src
 * Window and Buffer Config
 ** Window Config
@@ -160,6 +181,15 @@
 #+end_src
 
 * Development
+** Language
+*** Plaintext
+#+begin_src emacs-lisp
+(after! text-mode
+  (add-hook! 'text-mode-hook
+             ;; Apply ANSI color codes
+             (with-silent-modifications
+               (ansi-color-apply-on-region (point-min) (point-max)))))
+#+end_src
 ** Productivity
 *** Company
 **** Initial Setup
@@ -189,10 +219,301 @@
     company-files
     company-yasnippet))
 #+end_src
+*** Parentheses
+
 * Applications
-** Discod
+** Ebooks
+*** Calibre
+#+begin_src emacs-lisp
+(use-package! calibredb
+  :commands calibredb
+  :config
+  (setq calibredb-root-dir "~/Books/Calibre_Library"
+        calibredb-db-dir (expand-file-name "metadata.db" calibredb-root-dir)))
+#+end_src
+*** Nov
+#+begin_src emacs-lisp
+(use-package! nov
+  :mode ("\\.epub\\'" . nov-mode)
+  :config
+  (map! :map nov-mode-map
+        :n "RET" #'nov-scroll-up)
+
+  (defun doom-modeline-segment--nov-info ()
+    (concat
+     " "
+     (propertize
+      (cdr (assoc 'creator nov-metadata))
+      'face 'doom-modeline-project-parent-dir)
+     " "
+     (cdr (assoc 'title nov-metadata))
+     " "
+     (propertize
+      (format "%d/%d"
+              (1+ nov-documents-index)
+              (length nov-documents))
+      'face 'doom-modeline-info)))
+
+  (advice-add 'nov-render-title :override #'ignore)
+
+  (defun +nov-mode-setup ()
+    (face-remap-add-relative 'variable-pitch
+                             :family "Merriweather"
+                             :height 1.4
+                             :width 'semi-expanded)
+    (face-remap-add-relative 'default :height 1.3)
+    (setq-local line-spacing 0.2
+                next-screen-context-lines 4
+                shr-use-colors nil)
+    (require 'visual-fill-column nil t)
+    (setq-local visual-fill-column-center-text t
+                visual-fill-column-width 80
+                nov-text-width 80)
+    (visual-fill-column-mode 1)
+    (hl-line-mode -1)
+
+    (add-to-list '+lookup-definition-functions #'+lookup/dictionary-definition)
+
+    (setq-local mode-line-format
+                `((:eval
+                   (doom-modeline-segment--workspace-name))
+                  (:eval
+                   (doom-modeline-segment--window-number))
+                  (:eval
+                   (doom-modeline-segment--nov-info))
+                  ,(propertize
+                    " %P "
+                    'face 'doom-modeline-buffer-minor-mode)
+                  ,(propertize
+                    " "
+                    'face (if (doom-modeline--active) 'mode-line 'mode-line-inactive)
+                    'display `((space
+                                :align-to
+                                (- (+ right right-fringe right-margin)
+                                   ,(* (let ((width (doom-modeline--font-width)))
+                                         (or (and (= width 1) 1)
+                                             (/ width (frame-char-width) 1.0)))
+                                       (string-width
+                                        (format-mode-line (cons "" '(:eval (doom-modeline-segment--major-mode))))))))))
+                  (:eval (doom-modeline-segment--major-mode)))))
+
+  (add-hook 'nov-mode-hook #'+nov-mode-setup))
+#+end_src
+** Discord
 #+begin_src emacs-lisp
 (setq elcord-use-major-mode-as-main-icon t)
+#+end_src
+
+* Org Mode
+** Basic Config
+#+begin_src emacs-lisp
+(setq org-directory                     "~/Dropbox/org"
+      org-use-property-inheritance      t
+      org-log-done                      'time
+      org-list-allow-alphabetical       t
+      org-catch-invisible-edits         'smart)
+
+;; Enable Auto Fill Mode
+(add-hook 'text-mode-hook #'auto-fill-mode)
+
+;; Arrow equivalents for vim key bindings
+(map! :map evil-org-mode-map
+      :after evil-org
+      :n "g <up>"    #'org-backward-heading-same-level
+      :n "g <down>"  #'org-forward-heading-same-level
+      :n "g <left>"  #'org-up-element
+      :n "g <right>" #'org-down-element)
+#+end_src
+** Org-Babel
+#+begin_src emacs-lisp
+(setq org-babel-default-header-args
+      '((:session  . "none")
+        (:results  . "replace")
+        (:exports  . "code")
+        (:cache    . "no")
+        (:noweb    . "no")
+        (:hlines   . "no")
+        (:tangle   . "no")
+        (:comments . "link")))
+#+end_src
+** Org Rifle
+#+begin_src emacs-lisp
+(use-package! helm-org-rifle
+  :after org
+  :general
+  (:keymaps 'org-mode-map
+   :states 'normal
+   :prefix my-leader
+   "m r" '(:ignore t :wk "Rifle (Helm)")
+   "m r b" '(helm-org-rifle-current-buffer :wk "Rifle buffer")
+   "m r e" '(helm-org-rifle :wk "Rifle every open buffer")
+   "m r d" '(helm-org-rifle-directory :wk "Rifle from org-directory")
+   "m r a" '(helm-org-rifle-agenda-files :wk "Rifle agenda")
+   "m r o" '(:ignore t :wk "Occur (Persistent)")
+   "m r o b" '(helm-org-rifle-current-buffer :wk "Rifle buffer")
+   "m r o e" '(helm-org-rifle :wk "Rifle every open buffer")
+   "m r o d" '(helm-org-rifle-directory :wk "Rifle from org-directory")
+   "m r o a" '(helm-org-rifle-agenda-files :wk "Rifle agenda")))
+#+end_src
+** Org-Noter
+#+begin_src emacs-lisp
+(use-package! org-noter
+  :after (:any org pdf-view)
+  :config
+  (setq
+   org-noter-notes-window-location 'other-frame
+   org-noter-always-create-frame   nil
+   org-noter-hide-other            nil
+   org-noter-notes-search-path     (list "~/git/phd/notes/")))
+#+end_src
+** Bibtex
+#+begin_src emacs-lisp
+(after! org-ref
+  (setq
+   bibtex-completion-notes-path   "~/git/phd/notes/"
+   bibtex-completion-bibliography "~/Dropbox/org/Research/zotLib.bib"
+   bibtex-completion-pdf-field    "file"
+   bibtex-completion-notes-template-multiple-files
+   (concat
+    "#+TITLE: ${title}\n"
+    "#+ROAM_KEY: cite:${=key=}\n"
+    "#+ROAM_TAGS: ${keywords}\n"
+    "* TODO Notes\n"
+    ":PROPERTIES:\n"
+    ":Custom_ID: ${=key=}\n"
+    ":NOTER_DOCUMENT: %(orb-process-file-field \"${=key=}\")\n"
+    ":AUTHOR: ${author-abbrev}\n"
+    ":JOURNAL: ${journaltitle}\n"
+    ":DATE: ${date}\n"
+    ":YEAR: ${year}\n"
+    ":DOI: ${doi}\n"
+    ":URL: ${url}\n"
+    ":END:\n\n"
+    )))
+#+end_src
+** Org-Ref
+#+begin_src emacs-lisp
+(use-package! org-ref
+  :config
+  (setq
+   org-ref-completion-library        'org-ref-ivy-cite
+   org-ref-get-pdf-filename-function 'org-ref-get-pdf-filename-helm-bibtex
+   org-ref-default-bibliography (list "~/Dropbox/org/Research/zotLib.bib")
+   org-ref-bibliography-notes         "~/git/phd/notes/bibnotes.org"
+   org-ref-note-title-format          "* TODO %y - %t\n :PROPERTIES:\n  :Custom_ID: %k\n  :NOTER_DOCUMENT: %F\n :ROAM_KEY: cite:%k\n  :AUTHOR: %9a\n  :JOURNAL: %j\n  :YEAR: %y\n  :VOLUME: %v\n  :PAGES: %p\n  :DOI: %D\n  :URL: %U\n :END:\n\n"
+   org-ref-notes-directory            "~/git/phd/notes/"
+   org-ref-notes-function             'orb-edit-notes))
+#+end_src
+** Org-Roam
+*** Roam Directory
+#+begin_src emacs-lisp
+(setq org-roam-directory  "~/git/phd/notes/")
+#+end_src
+*** Org-Roam Bibtex
+#+begin_src emacs-lisp
+ (use-package! org-roam-bibtex
+   :after (org-roam)
+   :hook (org-roam-mode . org-roam-bibtex-mode)
+   :config
+   (setq org-roam-bibtex-preformat-keywords
+         '("=key=" "title" "url" "file" "author-or-editor" "keywords"))
+   (setq orb-templates
+         '(("r" "ref" plain (function org-roam-capture--get-point)
+            ""
+            :file-name "${slug}"
+            :head "#+TITLE: ${=key=}: ${title}\n#+ROAM_KEY: ${ref}\n#+ROAM_TAGS:
+
+ - keywords :: ${keywords}
+
+ \n* ${title}\n  :PROPERTIES:\n  :Custom_ID: ${=key=}\n  :URL: ${url}\n  :AUTHOR: ${author-or-editor}\n  :NOTER_DOCUMENT: %(orb-process-file-field \"${=key=}\")\n  :NOTER_PAGE: \n  :END:\n\n"
+
+            :unnarrowed t))))
+#+end_src
+* Writing
+** Dictionary
+*** Hunspell
+#+begin_src shell :tangle (if (file-exists-p "/usr/share/myspell/en-custom.dic") "no" "setup.sh")
+cd /tmp
+curl -o "hunspell-en-custom.zip" 'http://app.aspell.net/create?max_size=80&spelling=GBs&spelling=AU&max_variant=0&diacritic=keep&special=hacker&special=roman-numerals&encoding=utf-8&format=inline&download=hunspell'
+unzip "hunspell-en-custom.zip"
+
+sudo chown root:root en-custom.*
+sudo mv en-custom.{aff,dic} /usr/share/myspell/
+#+end_src
+*** Configuration
+#+begin_src emacs-lisp
+(setq ispell-dictionary "en-custom")
+(setq ispell-personal-dictionary (expand-file-name ".ispell_personal" doom-private-dir))
+#+end_src
+** Abbrev Mode
+#+begin_src emacs-lisp
+(use-package abbrev
+  :init
+  (setq-default abbrev-mode t)
+  ;; a hook funtion that sets the abbrev-table to org-mode-abbrev-table
+  ;; whenever the major mode is a text mode
+  (defun tec/set-text-mode-abbrev-table ()
+    (if (derived-mode-p 'text-mode)
+        (setq local-abbrev-table org-mode-abbrev-table)))
+  :commands abbrev-mode
+  :hook
+  (abbrev-mode . tec/set-text-mode-abbrev-table)
+  :config
+  (setq abbrev-file-name (expand-file-name "abbrev.el" doom-private-dir))
+  (setq save-abbrevs 'silently))
+#+end_src
+
+
+** Writeroom
+#+begin_src emacs-lisp
+(after! writeroom-mode
+  (add-hook 'writeroom-mode-hook
+            (defun +zen-cleaner-org ()
+              (when (and (eq major-mode 'org-mode) writeroom-mode)
+                (setq-local -display-line-numbers display-line-numbers
+                            display-line-numbers nil)
+                (setq-local -org-indent-mode org-indent-mode)
+                (org-indent-mode -1)
+                (when (featurep 'org-superstar)
+                  (setq-local -org-superstar-headline-bullets-list org-superstar-headline-bullets-list
+                              ;; org-superstar-headline-bullets-list '("🙐" "🙑" "🙒" "🙓" "🙔" "🙕" "🙖" "🙗")
+                              org-superstar-headline-bullets-list '("🙘" "🙙" "🙚" "🙛")
+                              -org-superstar-remove-leading-stars org-superstar-remove-leading-stars
+                              org-superstar-remove-leading-stars t)
+                  (org-superstar-restart)))))
+  (add-hook 'writeroom-mode-disable-hook
+            (defun +zen-dirty-org ()
+              (when (eq major-mode 'org-mode)
+                (setq-local display-line-numbers -display-line-numbers)
+                (when -org-indent-mode
+                  (org-indent-mode 1))
+                (when (featurep 'org-superstar)
+                  (setq-local org-superstar-headline-bullets-list -org-superstar-headline-bullets-list
+                              org-superstar-remove-leading-stars -org-superstar-remove-leading-stars)
+                  (org-superstar-restart))))))
+#+end_src
+
+* PDF Tools
+#+begin_src emacs-lisp
+(after! pdf-view
+  ;; open pdfs scaled to fit page
+  (setq-default pdf-view-display-size 'fit-width)
+  (setq pdf-annot-activate-created-annotations t
+        pdf-view-resize-factor 1.1)
+  (map!
+   :map pdf-view-mode-map
+   :n "g g"          #'pdf-view-first-page
+   :n "G"            #'pdf-view-last-page
+   :n "N"            #'pdf-view-next-page-command
+   :n "E"            #'pdf-view-previous-page-command
+   :n "e"            #'evil-collection-pdf-view-previous-line-or-previous-page
+   :n "n"            #'evil-collection-pdf-view-next-line-or-next-page
+   :localleader
+   (:prefix "o"
+    (:prefix "n"
+     :desc "Insert" "i" 'org-noter-insert-note
+     ))
+   ))
 #+end_src
 
 
@@ -276,7 +597,7 @@ ophints
  +all
  +defaults)
 (tabs                      ; an tab bar for Emacs
-  +centaur-tabs)           ; ... with prettier tabs
+ +centaur-tabs)           ; ... with prettier tabs
 treemacs
 ;;unicode                    ; extended unicode support for various languages
 vc-gutter
@@ -284,7 +605,7 @@ vi-tilde-fringe
 (window-select
  +numbers)
 workspaces
-;;zen                          ; distraction-free coding or writing
+zen                          ; distraction-free coding or writing
 #+end_src
 *** doom-editor
 #+name: doom-editor
