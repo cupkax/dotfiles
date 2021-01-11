@@ -9,9 +9,9 @@ if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]
 fi
 
 ## -------------------- PLUGINS -------------------- ##
-source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-source /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
-source /usr/share/doc/pkgfile/command-not-found.zsh
+source /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+source /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+#source /usr/share/doc/pkgfile/command-not-found.zsh
 
 zstyle ':completion:*' menu select
 
@@ -19,7 +19,7 @@ zstyle ':completion:*' menu select
 ZSH_THEME="powerlevel10k/powerlevel10k"
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
-source $HOME/dotfiles/shell/zsh/themes/powerlevel10k/powerlevel10k.zsh-theme
+source $HOME/dotfiles/shell/themes/powerlevel10k/powerlevel10k.zsh-theme
 
 
 ## -------------------- ZSH SETTINGS -------------------- ##
