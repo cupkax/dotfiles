@@ -26,10 +26,10 @@ if [ -f "$userresources" ]; then
 fi
 
 #undervolt
-undervolt --core -120 --cache -120
+#undervolt --core -120 --cache -120
 
 # Lower the brightness to a minimum
-xbacklight -set 30
+xbacklight -set 100
 
 # Disable mouse acceleration
 xset m 0 0
@@ -45,4 +45,5 @@ xsettingsd &
 # GNOME
 export XDG_SESSION_TYPE=x11
 export GDK_BACKEND=x11
-exec gnome-session #--session=awesome
+exec gnome-session
+
