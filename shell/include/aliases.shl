@@ -43,3 +43,11 @@ alias modem-on='dbus-send --print-reply --system --dest=org.ofono /phonesim org.
 alias modem-activate='dbus-send --print-reply --system --dest=org.ofono /phonesim org.ofono.Modem.SetProperty string:"Online" variant:boolean:true'
 alias twitch='streamlink-twitch-gui'
 alias connect-wifi="sudo wpa_supplicant -B -i wlo1 -c <(wpa_passphrase TP-Link_B250 Darkace23)"
+
+# Asus
+alias asus='asusctl'
+## Fan
+alias asus-fan='asusctl -f'
+alias fan0='asusctl -f silent'
+alias fan1='asusctl -f normal'
+alias fan2='asusctl -f boost'
