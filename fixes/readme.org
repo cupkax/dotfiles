@@ -1,1 +1,1 @@
-cp ~/dotfiles/fixes/alsa-base.conf /etc/modprobe.d/alsa-base.conf
+# cp ~/dotfiles/fixes/alsa-base.conf /etc/modprobe.d/alsa-base.conf
