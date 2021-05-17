@@ -5,24 +5,24 @@ sysresources=/etc/X11/xinit/.Xresources
 
 # merge in defaults and keymaps
 if [ -f "$userresources" ]; then
-    xrdb -merge "$userresources"
+	xrdb -merge "$userresources"
 fi
 
-## Launch dbus 
-if [ -d /etc/X11/xinit/xinitrc.d ] ; then
+## Launch dbus
+if [ -d /etc/X11/xinit/xinitrc.d ]; then
 
-    for f in /etc/X11/xinit/xinitrc.d/?* ; do
-        [ -x "$f" ] && . "$f"
-    done
-    unset f
+	for f in /etc/X11/xinit/xinitrc.d/?*; do
+		[ -x "$f" ] && . "$f"
+	done
+	unset f
 fi
 
 if [ -f $sysresources ]; then
-    xrdb -merge $sysresources
+	xrdb -merge $sysresources
 fi
 
 if [ -f "$userresources" ]; then
-    xrdb -merge "$userresources"
+	xrdb -merge "$userresources"
 fi
 
 #undervolt
@@ -36,18 +36,15 @@ xset m 0 0
 
 # Default keymap
 setxkbmap gb
- 
 
 # Load XSettings
 xsettingsd &
 
-
-## DE / WM 
+## DE / WM
 # i3
-exec i3
+#exec i3
 
 # GNOME
-#export XDG_SESSION_TYPE=x11
-#export GDK_BACKEND=x11
-#exec gnome-session
-
+export XDG_SESSION_TYPE=x11
+export GDK_BACKEND=x11
+exec gnome-session

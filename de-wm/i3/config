@@ -203,6 +203,6 @@ mode "$mode_gaps" {
 }
 
 # startup applications
-exec_always --no-startup-id nm-applet
-exec_always --no-startup-id feh --bg-fill ~/arch/wallpapers/abs01.jpg
-exec_always --no-startup-id picom
+#exec_always --no-startup-id nm-applet
+#exec_always --no-startup-id feh --bg-fill ~/arch/wallpapers/abs01.jpg
+#exec_always --no-startup-id picom

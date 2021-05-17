@@ -33,6 +33,7 @@ alias vim='nvim'
 
 # Commands
 alias getme='sudo powerpill -Syu'
+alias yay='sudo pacman -Sy && sudo powerpill -Su && paru -Su'
 alias ga='git add'
 alias gc='git commit'
 alias gpom='git push -u origin master'
@@ -51,3 +52,6 @@ alias asus-fan='asusctl -f'
 alias fan0='asusctl -f silent'
 alias fan1='asusctl -f normal'
 alias fan2='asusctl -f boost'
+
+# Remap parenleft
+xmodmap -e "keycode 15 = parenleft"
