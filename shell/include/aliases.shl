@@ -40,5 +40,3 @@ alias gpom='git push -u origin master'
 alias gs='git status'
 alias firefox='firefox-nightly'
 alias mirror='sudo reflector --verbose --protocol https --protocol http --country Australia --country Singapore --age 12 --sort rate --save /etc/pacman.d/mirrorlist'
-alias twitch='streamlink-twitch-gui'
-alias connect-wifi="sudo wpa_supplicant -B -i wlo1 -c <(wpa_passphrase TP-Link_B250 Darkace23)"
