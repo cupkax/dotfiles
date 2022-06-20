@@ -21,7 +21,6 @@ ZSH_THEME="powerlevel10k/powerlevel10k"
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 source /usr/share/zsh-theme-powerlevel10k/powerlevel10k.zsh-theme
 
-
 ## -------------------- ZSH SETTINGS -------------------- ##
 # Completion Progress
 COMPLETION_WAITING_DOTS="true"
@@ -55,3 +54,4 @@ setopt    NOTIFY		  # Notify status fo background jobs
 
 export EDITOR=vim;
 sudo localedef -fUTF-8 -i en_GB en_GB.UTF-8
+clear
