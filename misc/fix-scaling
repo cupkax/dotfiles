@@ -1,0 +1,5 @@
+#!/bin/bash
+xrandr --output DP-0 --scale 2.0x2.0
+sleep 2
+xrandr --output DP-0 --scale 1.25x1.25
+
