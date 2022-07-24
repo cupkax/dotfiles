@@ -19,6 +19,17 @@ export LESS_TERMCAP_so=$'\e[01;33m'
 export LESS_TERMCAP_ue=$'\e[0m'
 export LESS_TERMCAP_us=$'\e[1;4;31m'
 
+# Dotnet
+# Disable dotnet telemetry
+DOTNET_CLI_TELEMETRY_OPTOUT=1
+
+# Set dotnet root
+export DOTNET_ROOT=/opt/dotnet
+
+# Set editor
+export EDITOR='nvim'
+export VISUAL='nvim'
+
 # ssh
-eval `ssh-agent`
-ssh-add -k ~/.ssh/personal
+#eval `ssh-agent`
+#ssh-add -k ~/.ssh/personal

@@ -1,4 +1,0 @@
-start=275.001002
-volume=20.000000
-fullscreen=yes
-vf=format=colorlevels=full:colormatrix=auto,@easycrop:crop=%2%@0=180:%2%@1=116:%2%@2=60:%2%@3=37

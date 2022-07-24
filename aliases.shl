@@ -14,7 +14,7 @@ alias ..='cd ..'
   alias top='bashtop'
 
   # cat/less
-  alias bat='bat --theme=ansi-$([ "$COLOR_SCHEME" = "light" ] && echo "light" || echo "dark")'
+  alias bat='bat --theme=ansi'
   alias cat='bat --pager=never'
   alias less='bat'
 
@@ -40,4 +40,3 @@ alias gpom='git push -u origin master'
 alias gs='git status'
 alias firefox='firefox-nightly'
 alias mirror='sudo reflector --verbose --protocol https --protocol http --country Australia --country Singapore --age 12 --sort rate --save /etc/pacman.d/mirrorlist'
-alias wipeall='rm -rf ..?* .[^.]* *'

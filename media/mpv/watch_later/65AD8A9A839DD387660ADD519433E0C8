@@ -1,4 +1,0 @@
-start=3016.972000
-fullscreen=yes
-vf=format=colorlevels=full:colormatrix=auto,@easycrop:crop=%2%@0=3838:%2%@1=1920:%2%@2=0:%2%@3=0
-sid=1

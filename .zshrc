@@ -1,6 +1,6 @@
 # -------------------- INCLUDE -------------------- ##
-[ -f $HOME/dotfiles/shell/include/environment.shl ] && . $HOME/dotfiles/shell/include/environment.shl
-[ -f $HOME/dotfiles/shell/include/aliases.shl ] && . $HOME/dotfiles/shell/include/aliases.shl
+[ -f $HOME/dotfiles/environment.shl ] && . $HOME/dotfiles/environment.shl
+[ -f $HOME/dotfiles/aliases.shl ] && . $HOME/dotfiles/aliases.shl
 
 
 ## -------------------- INSTANT PROMPT -------------------- ##
@@ -53,5 +53,4 @@ setopt    NULL_GLOB		  # Delete pattern instead of reporting error
 setopt    NOTIFY		  # Notify status fo background jobs
 
 export EDITOR=vim;
-sudo localedef -fUTF-8 -i en_GB en_GB.UTF-8
-clear
+#sudo localedef -fUTF-8 -i en_GB en_GB.UTF-8
