@@ -31,5 +31,4 @@ export EDITOR='nvim'
 export VISUAL='nvim'
 
 # ssh
-#eval `ssh-agent`
-#ssh-add -k ~/.ssh/personal
+#eval $(keychain --agents ssh --eval id_ed25519)
