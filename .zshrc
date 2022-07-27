@@ -32,7 +32,7 @@ SAVEHIST=10000000
 HIST_STAMPS="yyyy/mm/dd"
 
 # Neofetch
-#neofetch
+neofetch
 
 # Options
 autoload compinit && compinit
@@ -53,4 +53,5 @@ setopt    NULL_GLOB		  # Delete pattern instead of reporting error
 setopt    NOTIFY		  # Notify status fo background jobs
 
 export EDITOR=vim;
+
 #sudo localedef -fUTF-8 -i en_GB en_GB.UTF-8
