@@ -1,0 +1,4 @@
+ncmpcpp_directory = ~/.config/ncmpcpp
+mpd_music_dir = "/home/vedant/win_d/data/media/music/"
+mpd_host = localhost
+mpd_port = 6600
