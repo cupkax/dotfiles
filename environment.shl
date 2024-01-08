@@ -1,5 +1,5 @@
 ## -------------------- Exports -------------------- ##
-export PATH="${PATH}:$HOME/bin:$HOME/.emacs.d/bin:$HOME/.local/bin/"
+export PATH="${PATH}:$HOME/bin:$HOME/.emacs.d/bin:$HOME/.local/bin/:$HOME/.config/emacs/bin"
 export JUPYTERLAB_DIR=$HOME/.local/share/jupyter/lab
 
 if [[ $(uname -r | grep micrsoft) ]]; then
