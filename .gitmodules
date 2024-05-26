@@ -1,3 +1,0 @@
-[submodule "beets-config"]
-	path = beets-config
-	url = git@github.com:cupkax/beets-config.git
